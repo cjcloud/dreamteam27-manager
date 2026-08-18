@@ -2,7 +2,13 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { ALLOWED_FORMATIONS, BUDGET_CAP, POSITION_MAX, SQUAD_SIZE } from "@/lib/constants";
-import { canAddPlayer, possibleFormations, totalValue, validateSquadForSave } from "@/lib/squadRules";
+import {
+  canAddPlayer,
+  parseFormationShape,
+  possibleFormations,
+  totalValue,
+  validateSquadForSave,
+} from "@/lib/squadRules";
 import type { FlatManagerRecord, PoolPlayer, Position } from "@/lib/types";
 
 type Step = "identify" | "showExisting" | "squad" | "done";
@@ -100,6 +106,18 @@ export default function Page() {
     if (matchingFormations.length === 1) setFormation(matchingFormations[0]!);
   }, [matchingFormations]);
 
+  // If the currently-selected formation's DEF/MID/STR target is already
+  // exceeded by the squad as it stands (can happen if a formation is
+  // picked/changed after some players are already added), flag it — even
+  // before 11 players are in, since it's actionable info the moment it's
+  // true, not just at the end.
+  const formationOverTarget = useMemo(() => {
+    const shape = parseFormationShape(formation);
+    if (!shape) return null;
+    const over = (["DEF", "MID", "STR"] as const).filter((pos) => counts[pos] > shape[pos]);
+    return over.length > 0 ? { shape, over } : null;
+  }, [formation, counts]);
+
   const filteredPool = useMemo(() => {
     return pool.filter((p) => {
       if (posFilter !== "ALL" && p.playerPosition !== posFilter) return false;
@@ -109,7 +127,7 @@ export default function Page() {
   }, [pool, posFilter, search]);
 
   function addPlayer(p: PoolPlayer) {
-    const check = canAddPlayer(squad, p);
+    const check = canAddPlayer(squad, p, formation);
     if (!check.ok) {
       setSaveError(check.errors);
       return;
@@ -264,6 +282,13 @@ export default function Page() {
                 </option>
               ))}
             </select>
+            {formationOverTarget && (
+              <p className="text-[var(--dt-danger)] text-sm mt-2">
+                Your squad already has more {formationOverTarget.over.join("/")} than {formation} allows
+                (needs {formationOverTarget.shape.DEF} DEF, {formationOverTarget.shape.MID} MID,{" "}
+                {formationOverTarget.shape.STR} STR) — remove some, or pick a different formation.
+              </p>
+            )}
             {squad.length === SQUAD_SIZE && matchingFormations.length === 0 && (
               <p className="text-[var(--dt-danger)] text-sm mt-2">
                 This DEF/MID/STR split doesn&apos;t match any allowed formation.
