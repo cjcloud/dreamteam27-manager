@@ -1,36 +1,51 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# dreamteam27-manager
 
-## Getting Started
+Self-service team registration app for DreamTeam27 — the third app in the
+suite alongside `dreamteam27-capture` (admin) and `dreamteam27-display`
+(public views). Lets an individual manager register and edit their own
+fantasy football team without needing capture-app admin access.
 
-First, run the development server:
+Shares the `footieteamz27` Firebase Realtime Database with the other two
+apps, writing directly to the same `/0` managers node.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## Source of truth
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+The authoritative spec for this app's behaviour — identity/uniqueness
+rules, the edit cutoff, squad validation, data target, and access model —
+is [`docs/SPEC-manager-app.md`](docs/SPEC-manager-app.md). Treat it the
+same way `dreamteam27-capture` treats its
+`docs/API-CONTRACT-player-retrieval.md`: it's locked/authoritative, and
+changes to behaviour should update the doc in the same change.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Overall project status (all three apps, shared decisions, open items) is
+tracked centrally in
+[`cjcloud/dreamteam27Status`](https://github.com/cjcloud/dreamteam27Status/blob/main/PROJECT-STATUS.md).
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Stack
 
-## Learn More
+Next.js (App Router) + TypeScript + Tailwind, matching `dreamteam27-capture`.
+Reads/writes Firebase via the Admin SDK server-side only (API routes under
+`src/app/api/`) — the client never talks to Firebase directly.
 
-To learn more about Next.js, take a look at the following resources:
+## Getting started (local dev)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+1. Copy `.env.local.example` to `.env.local` and fill in the three
+   `FIREBASE_ADMIN_*` values — **reuse the same `footieteamz27`
+   service-account key already used by `dreamteam27-capture`** (see that
+   project's `PROJECT-STATUS.md` §6 for how it was generated); no need to
+   create a second key for the same Firebase project.
+2. Install and run:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+   ```bash
+   npm install
+   npm run dev
+   ```
 
-## Deploy on Vercel
+3. Open http://localhost:3000.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Deploying
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Deploys to Vercel the same way as capture/display: import this repo, set
+the `FIREBASE_ADMIN_*` env vars in the Vercel project settings (paste
+directly, never commit them — watch that `FIREBASE_ADMIN_PRIVATE_KEY`'s
+line breaks survive the paste), push to `main`.
