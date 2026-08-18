@@ -602,6 +602,14 @@ export default function Page() {
               )}
           </div>
 
+          {saveError && (
+            <div className="bg-[var(--dt-surface)] p-4 rounded-lg text-[var(--dt-danger)] text-sm space-y-1">
+              {saveError.map((e, i) => (
+                <div key={i}>{e}</div>
+              ))}
+            </div>
+          )}
+
           <div className="grid md:grid-cols-2 gap-6">
             <div className="bg-[var(--dt-surface)] p-4 rounded-lg">
               <h2 className="font-semibold mb-2 text-[var(--dt-content)]">Your squad</h2>
@@ -659,14 +667,6 @@ export default function Page() {
               )}
             </div>
           </div>
-
-          {saveError && (
-            <div className="bg-[var(--dt-surface)] p-4 rounded-lg text-[var(--dt-danger)] text-sm space-y-1">
-              {saveError.map((e, i) => (
-                <div key={i}>{e}</div>
-              ))}
-            </div>
-          )}
 
           <div className="flex flex-wrap gap-3">
             <button
