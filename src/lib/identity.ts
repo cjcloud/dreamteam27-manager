@@ -10,13 +10,16 @@ function escapeRegex(s: string): string {
 }
 
 // Everyone whose stored name is `baseName` or `baseName/<digits>`.
+// The real identity field on a stored record is `manager` (verified
+// 2026-08-18 against live data — present on every record, old-shape or
+// new; `name` is a newer duplicate field, not always present).
 export function findNameFamily(
   managers: IndexedManager[],
   baseName: string
 ): IndexedManager[] {
   const trimmed = baseName.trim();
   const re = new RegExp(`^${escapeRegex(trimmed)}(/(\\d+))?$`);
-  return managers.filter((m) => re.test((m.record.name ?? "").trim()));
+  return managers.filter((m) => re.test((m.record.manager ?? "").trim()));
 }
 
 function suffixOf(name: string, baseName: string): number {
@@ -30,7 +33,7 @@ export function nextAvailableSuffix(
   family: IndexedManager[],
   baseName: string
 ): number {
-  const used = new Set(family.map((m) => suffixOf(m.record.name, baseName)));
+  const used = new Set(family.map((m) => suffixOf(m.record.manager ?? "", baseName)));
   let n = 2;
   while (used.has(n)) n++;
   return n;

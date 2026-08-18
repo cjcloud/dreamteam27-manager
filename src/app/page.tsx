@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { BUDGET_CAP, POSITION_MAX, SQUAD_SIZE } from "@/lib/constants";
 import { canAddPlayer, possibleFormations, totalValue, validateSquadForSave } from "@/lib/squadRules";
-import type { ManagerRecord, PlayerDetails, Position } from "@/lib/types";
+import type { FlatManagerRecord, PoolPlayer, Position } from "@/lib/types";
 
 type Step = "identify" | "showExisting" | "squad" | "done";
 type Mode = "create" | "edit";
@@ -15,16 +15,16 @@ export default function Page() {
   const [mobile, setMobile] = useState("");
   const [assignedName, setAssignedName] = useState("");
   const [existingIndex, setExistingIndex] = useState<number | null>(null);
-  const [existingManager, setExistingManager] = useState<ManagerRecord | null>(null);
+  const [existingManager, setExistingManager] = useState<FlatManagerRecord | null>(null);
   const [editingOpen, setEditingOpen] = useState(true);
   const [identifyError, setIdentifyError] = useState<string | null>(null);
   const [identifyLoading, setIdentifyLoading] = useState(false);
 
-  const [pool, setPool] = useState<PlayerDetails[]>([]);
+  const [pool, setPool] = useState<PoolPlayer[]>([]);
   const [poolLoading, setPoolLoading] = useState(false);
   const [search, setSearch] = useState("");
   const [posFilter, setPosFilter] = useState<Position | "ALL">("ALL");
-  const [squad, setSquad] = useState<PlayerDetails[]>([]);
+  const [squad, setSquad] = useState<PoolPlayer[]>([]);
   const [formation, setFormation] = useState("");
   const [saveError, setSaveError] = useState<string[] | null>(null);
   const [saving, setSaving] = useState(false);
@@ -103,7 +103,7 @@ export default function Page() {
     });
   }, [pool, posFilter, search]);
 
-  function addPlayer(p: PlayerDetails) {
+  function addPlayer(p: PoolPlayer) {
     const check = canAddPlayer(squad, p);
     if (!check.ok) {
       setSaveError(check.errors);
@@ -189,11 +189,11 @@ export default function Page() {
       {step === "showExisting" && existingManager && (
         <div className="space-y-4 bg-[var(--dt-surface)] p-6 rounded-lg">
           <p>
-            A team already exists for <strong>{existingManager.name}</strong>.
+            A team already exists for <strong>{existingManager.manager}</strong>.
           </p>
           <div className="text-sm text-[var(--dt-content-muted)]">
             Formation: {existingManager.formation ?? "—"} · Value: £
-            {existingManager.totalValue ?? totalValue(existingManager.teamDetails ?? [])}M
+            {existingManager.teamValue ?? totalValue(existingManager.teamDetails ?? [])}M
           </div>
           <ul className="grid grid-cols-2 gap-1 text-sm">
             {(existingManager.teamDetails ?? []).map((p) => (

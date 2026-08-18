@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { readManagers, writeManagerAt } from "@/lib/managersDb";
 import { isEditingOpen, EDIT_CUTOFF_ISO } from "@/lib/constants";
 import { validateSquadForSave, totalValue } from "@/lib/squadRules";
-import type { PlayerDetails } from "@/lib/types";
+import { toTeamDetailEntry } from "@/lib/types";
+import type { PoolPlayer } from "@/lib/types";
 
 // Edits an existing team in place. The edit cutoff is enforced HERE,
 // server-side — this is the real guard, not the client hiding a button.
@@ -21,7 +22,7 @@ export async function POST(req: Request) {
       index: number;
       name: string;
       mobile: string;
-      teamDetails: PlayerDetails[];
+      teamDetails: PoolPlayer[];
       formation: string;
     };
 
@@ -43,7 +44,7 @@ export async function POST(req: Request) {
     // match the record being edited, so an edit request can't be pointed
     // at someone else's index.
     if (
-      (existing.record.name ?? "").trim() !== name.trim() ||
+      (existing.record.manager ?? "").trim() !== name.trim() ||
       (existing.record.mobile ?? "").trim() !== mobile.trim()
     ) {
       return NextResponse.json({ error: "Name/mobile does not match this team." }, { status: 403 });
@@ -51,10 +52,10 @@ export async function POST(req: Request) {
 
     await writeManagerAt(index, {
       ...existing.record,
-      teamDetails,
+      teamDetails: (teamDetails ?? []).map(toTeamDetailEntry),
+      teamValue: totalValue(teamDetails ?? []),
       formation,
-      totalValue: totalValue(teamDetails),
-      updatedAt: Date.now(),
+      lastUpdated: new Date().toISOString(),
     });
 
     return NextResponse.json({ ok: true, index });

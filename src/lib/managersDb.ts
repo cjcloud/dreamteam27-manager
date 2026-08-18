@@ -30,6 +30,15 @@ export function nextIndex(managers: IndexedManager[]): number {
   return Math.max(...managers.map((m) => m.index)) + 1;
 }
 
+// Verified live data uses a sequential 1-based `managerId` alongside the
+// array index (index 0 → managerId 1, etc.). Derive the next one from
+// whichever is higher, in case the two ever drift.
+export function nextManagerId(managers: IndexedManager[]): number {
+  const ids = managers.map((m) => m.record.managerId ?? m.index + 1);
+  const maxIndexBased = managers.length === 0 ? 0 : Math.max(...managers.map((m) => m.index)) + 1;
+  return Math.max(0, ...ids, maxIndexBased);
+}
+
 export async function writeManagerAt(index: number, record: ManagerRecord): Promise<void> {
   await adminDb().ref(`${DB_PATHS.MANAGERS}/${index}`).set(record);
 }

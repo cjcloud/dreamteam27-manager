@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
-import { nextIndex, readManagers, writeManagerAt } from "@/lib/managersDb";
+import { nextIndex, nextManagerId, readManagers, writeManagerAt } from "@/lib/managersDb";
 import { resolveIdentity } from "@/lib/identity";
 import { validateSquadForSave, totalValue } from "@/lib/squadRules";
-import type { PlayerDetails } from "@/lib/types";
+import { toTeamDetailEntry } from "@/lib/types";
+import type { PoolPlayer } from "@/lib/types";
 
 // Creates a brand-new team. Re-resolves identity server-side at write time
 // (not trusting whatever the client last saw from /api/lookup) to avoid a
@@ -16,7 +17,7 @@ export async function POST(req: Request) {
     const { name, mobile, teamDetails, formation } = body as {
       name: string;
       mobile: string;
-      teamDetails: PlayerDetails[];
+      teamDetails: PoolPlayer[];
       formation: string;
     };
 
@@ -44,16 +45,19 @@ export async function POST(req: Request) {
     }
 
     const index = nextIndex(managers);
-    const now = Date.now();
+    const managerId = nextManagerId(managers);
+    const now = new Date().toISOString();
     await writeManagerAt(index, {
+      manager: identity.assignedName,
       name: identity.assignedName,
+      managerId,
       mobile: mobile.trim(),
-      teamDetails,
+      teamDetails: (teamDetails ?? []).map(toTeamDetailEntry),
+      teamValue: totalValue(teamDetails ?? []),
+      totalPoints: 0,
       formation,
-      totalValue: totalValue(teamDetails),
+      lastUpdated: now,
       source: "manager-app",
-      createdAt: now,
-      updatedAt: now,
     });
 
     return NextResponse.json({ ok: true, index, name: identity.assignedName });

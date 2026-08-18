@@ -1,12 +1,12 @@
 import { ALLOWED_FORMATIONS, BUDGET_CAP, POSITION_MAX, SQUAD_SIZE } from "./constants";
-import type { PlayerDetails } from "./types";
+import type { PoolPlayer } from "./types";
 
 export interface ValidationResult {
   ok: boolean;
   errors: string[];
 }
 
-function countByPosition(players: PlayerDetails[]) {
+function countByPosition(players: PoolPlayer[]) {
   return players.reduce(
     (acc, p) => {
       acc[p.playerPosition] = (acc[p.playerPosition] ?? 0) + 1;
@@ -16,15 +16,15 @@ function countByPosition(players: PlayerDetails[]) {
   );
 }
 
-export function totalValue(players: PlayerDetails[]): number {
+export function totalValue(players: PoolPlayer[]): number {
   return Math.round(players.reduce((sum, p) => sum + (p.playerValue ?? 0), 0) * 10) / 10;
 }
 
 // Entry-stage check: would adding this player break a hard rule?
 // Mirrors capture's `handleAddPlayer` hard-blocks.
 export function canAddPlayer(
-  current: PlayerDetails[],
-  candidate: PlayerDetails
+  current: PoolPlayer[],
+  candidate: PoolPlayer
 ): ValidationResult {
   const errors: string[] = [];
 
@@ -53,7 +53,7 @@ export function canAddPlayer(
 
 // Save-stage check: mirrors capture's selected-players save validation.
 export function validateSquadForSave(
-  players: PlayerDetails[],
+  players: PoolPlayer[],
   formation: string
 ): ValidationResult {
   const errors: string[] = [];
@@ -85,7 +85,7 @@ export function validateSquadForSave(
 
 // Given a valid 11-player squad, which allowed formations does its
 // DEF/MID/STR split satisfy? (GK is always 1 and not part of the string.)
-export function possibleFormations(players: PlayerDetails[]): string[] {
+export function possibleFormations(players: PoolPlayer[]): string[] {
   const counts = countByPosition(players);
   const shape = `${counts.DEF ?? 0}-${counts.MID ?? 0}-${counts.STR ?? 0}`;
   return ALLOWED_FORMATIONS.filter((f) => f === shape);
