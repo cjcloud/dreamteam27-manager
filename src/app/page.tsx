@@ -102,9 +102,15 @@ export default function Page() {
   // their squad, not just after).
   const matchingFormations = useMemo(() => possibleFormations(squad), [squad]);
 
+  // Only fills in a default when nothing's been chosen yet — must NOT fire
+  // whenever the squad happens to uniquely match a formation, or it fights
+  // a manual selection: pick a squad that matches 4-4-2, manually switch to
+  // 4-3-3, and on the next render matchingFormations would still be
+  // ["4-4-2"], silently snapping the dropdown back. The user must always be
+  // able to change formation freely.
   useEffect(() => {
-    if (matchingFormations.length === 1) setFormation(matchingFormations[0]!);
-  }, [matchingFormations]);
+    if (!formation && matchingFormations.length === 1) setFormation(matchingFormations[0]!);
+  }, [matchingFormations, formation]);
 
   // If the currently-selected formation's DEF/MID/STR target is already
   // exceeded by the squad as it stands (can happen if a formation is
