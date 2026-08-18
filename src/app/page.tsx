@@ -22,14 +22,25 @@ interface TeamSummary {
   playerCount: number;
 }
 
-// UK mobile numbers only: digits, starting "07". Strips anything typed that
-// isn't a digit (so letters/symbols can never end up in the field) and
-// reports a warning describing why, so the manager sees why their input
-// changed or is being rejected rather than it just silently not working.
+const MOBILE_LENGTH = 12;
+
+// Mobile numbers must be digits only, starting "07", exactly 12 digits
+// long (e.g. 077001234567). Strips anything typed that isn't a digit (so
+// letters/symbols can never end up in the field), truncates anything past
+// the 12th digit, and reports a warning describing why, so the manager
+// sees why their input changed or is being rejected rather than it just
+// silently not working.
 function sanitizeMobileInput(raw: string): { digits: string; warning: string | null } {
-  const digits = raw.replace(/\D/g, "");
-  if (raw !== digits) {
+  const digitsOnly = raw.replace(/\D/g, "");
+  const digits = digitsOnly.slice(0, MOBILE_LENGTH);
+  if (raw !== digitsOnly) {
     return { digits, warning: "Mobile numbers can only contain digits — letters and symbols were removed." };
+  }
+  if (digitsOnly.length > MOBILE_LENGTH) {
+    return {
+      digits,
+      warning: `Mobile number must be exactly ${MOBILE_LENGTH} digits (07XXXXXXXXXX) — extra digits were removed.`,
+    };
   }
   if (digits.length > 0 && !"07".startsWith(digits) && !digits.startsWith("07")) {
     return { digits, warning: "Mobile number must start with 07 (a UK mobile number)." };
@@ -49,6 +60,11 @@ export default function Page() {
   const [identifyError, setIdentifyError] = useState<string | null>(null);
   const [identifyLoading, setIdentifyLoading] = useState(false);
   const [mobileWarning, setMobileWarning] = useState<string | null>(null);
+  // Whether the current (valid-format) mobile number has any team already
+  // registered under it — drives whether "List my teams" is enabled at
+  // all, refreshed by a debounced background check as the manager types.
+  const [mobileHasTeams, setMobileHasTeams] = useState(false);
+  const [mobileCheckLoading, setMobileCheckLoading] = useState(false);
   // Live result of checking the current (name, mobile) pair against the
   // database, refreshed automatically as the manager types — drives which
   // action button (Register vs. Edit) is active on the identify screen.
@@ -89,16 +105,44 @@ export default function Page() {
       .finally(() => setPoolLoading(false));
   }, [step, pool.length]);
 
-  // Only digits starting "07" count as a plausible UK mobile number — see
-  // sanitizeMobileInput, which already strips non-digit characters as the
-  // manager types, so this is really just the "07" prefix check.
-  const mobileValid = mobile.length > 0 && mobile.startsWith("07");
+  // A plausible UK mobile number: digits only, starting "07", exactly 12
+  // digits long — see sanitizeMobileInput, which already strips/truncates
+  // as the manager types, so this is really just the shape check.
+  const mobileValid = mobile.length === MOBILE_LENGTH && mobile.startsWith("07");
 
   function handleMobileChange(e: ChangeEvent<HTMLInputElement>) {
     const { digits, warning } = sanitizeMobileInput(e.target.value);
     setMobile(digits);
     setMobileWarning(warning);
   }
+
+  // As soon as the mobile number is a valid shape, silently check
+  // (debounced) whether ANY team is already registered under it — this is
+  // what gates "List my teams" being enabled at all, independent of
+  // whatever's typed in the name field.
+  useEffect(() => {
+    if (step !== "identify" || !mobileValid) {
+      setMobileHasTeams(false);
+      return;
+    }
+    const handle = setTimeout(async () => {
+      setMobileCheckLoading(true);
+      try {
+        const res = await fetch("/api/teams-by-mobile", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ mobile }),
+        });
+        const data = await res.json();
+        setMobileHasTeams(res.ok && Array.isArray(data.teams) && data.teams.length > 0);
+      } catch {
+        setMobileHasTeams(false);
+      } finally {
+        setMobileCheckLoading(false);
+      }
+    }, 400);
+    return () => clearTimeout(handle);
+  }, [step, mobile, mobileValid]);
 
   // As soon as both a name and a valid mobile number are entered on the
   // identify screen, silently check (debounced) whether that exact pair
@@ -388,9 +432,14 @@ export default function Page() {
               value={mobile}
               onChange={handleMobileChange}
               inputMode="numeric"
-              placeholder="e.g. 07700900123"
+              placeholder="e.g. 077001234567"
             />
             {mobileWarning && <p className="mt-1 text-xs text-[var(--dt-danger)]">{mobileWarning}</p>}
+            {!mobileWarning && mobile.length > 0 && mobile.length < MOBILE_LENGTH && (
+              <p className="mt-1 text-xs text-[var(--dt-content-muted)]">
+                Must start with 07 and be {MOBILE_LENGTH} digits long ({MOBILE_LENGTH - mobile.length} more to go).
+              </p>
+            )}
             <p className="mt-1 text-xs text-[var(--dt-content-muted)]">
               Your mobile number is only used to identify your team (e.g. to tell two managers with the
               same name apart) — it&apos;s never shown publicly or displayed anywhere in the league.
@@ -407,14 +456,20 @@ export default function Page() {
           </div>
           {identifyError && <p className="text-[var(--dt-danger)] text-sm">{identifyError}</p>}
           <div className="flex flex-wrap gap-3 items-center pt-1">
-            <button
-              type="button"
-              onClick={listMyTeams}
-              disabled={!mobileValid || teamsListLoading}
-              className="bg-[var(--dt-surface-2)] hover:opacity-90 text-[var(--dt-content)] px-4 py-2 rounded font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {teamsListLoading ? "Looking up…" : "List my teams"}
-            </button>
+            {checkResult?.mode !== "edit" && (
+              <button
+                type="button"
+                onClick={listMyTeams}
+                disabled={!mobileValid || !!name.trim() || !mobileHasTeams || teamsListLoading}
+                className="bg-[var(--dt-surface-2)] hover:opacity-90 text-[var(--dt-content)] px-4 py-2 rounded font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {teamsListLoading
+                  ? "Looking up…"
+                  : mobileCheckLoading
+                  ? "Checking…"
+                  : "List my teams"}
+              </button>
+            )}
 
             {checkResult?.mode === "edit" && (
               <>

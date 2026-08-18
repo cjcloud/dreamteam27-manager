@@ -48,27 +48,34 @@ stored manager name — it is not recalculated on every read.
 
 1. Manager enters **mobile number** first, then **name** (mobile is asked
    for first in the UI since it's also the key used by the "List my teams"
-   lookup below). The mobile field only accepts digits starting `07` (a UK
-   mobile number) — non-digit characters typed are stripped immediately,
-   and a warning is shown if what's left doesn't start with `07`. This is a
-   client-side UX guard only; it is not (yet) re-validated server-side.
-2. As soon as both fields are filled, the app checks (debounced, live —
-   `/api/lookup`) whether that exact (name, mobile) pair already has a team,
-   and shows exactly one of:
-   - **Register** button — no match exists yet. Proceeds to a fresh
-     registration/squad-building form, auto-suffixing the name per §2 if the
-     base name is already taken under a different mobile.
-   - **Edit** button, plus the advisory text "This team exists" — an exact
-     match was found. Proceeds to the read-only team preview (§2's existing
-     "showExisting" screen) with its own **Edit this team** button to start
-     editing (see §4 for the cutoff rule, which also disables this button
-     directly).
-3. A **List my teams** button is available at all times once a mobile
-   number has been entered (independent of whether a name has also been
-   typed) — looks up every non-ADMIN team registered under that mobile via
-   `/api/teams-by-mobile` and lists them with an **Edit** button per team,
-   jumping straight into editing that team.
-4. On save (new registration or an accepted edit), validate against the
+   lookup below). The mobile field only accepts digits, starting `07`,
+   exactly 12 digits long (e.g. `077001234567`) — non-digit characters and
+   any digits past the 12th are stripped immediately, and a warning
+   explains why. This is a client-side UX guard only; it is not (yet)
+   re-validated server-side.
+2. **List my teams** is enabled only once a *valid-shape* mobile number is
+   entered AND a background check (debounced, `/api/teams-by-mobile`)
+   confirms at least one team is already registered under it — it stays
+   disabled for a mobile number with no teams. It's also disabled/hidden as
+   soon as a name is typed (see next point), since at that point the
+   Register/Edit check below takes over.
+3. As soon as **both** a valid mobile number and a name are entered, a
+   second live check (`/api/lookup`) determines whether that exact (name,
+   mobile) pair already has a team:
+   - **No match** → a **Register** button appears. Proceeds to a fresh
+     registration/squad-building form, auto-suffixing the name per §2 if
+     the base name is already taken under a different mobile.
+   - **Exact match** → **List my teams** is hidden, **Register** is not
+     shown, and the *only* button presented is **Edit**, alongside the
+     advisory text "This team exists" (or "— editing is closed" once past
+     the cutoff, disabling the button). Proceeds to the read-only team
+     preview (§2's existing "showExisting" screen) with its own **Edit
+     this team** button to start editing.
+4. **List my teams** (when shown per point 2 above) looks up every
+   non-ADMIN team registered under that mobile via `/api/teams-by-mobile`
+   and lists them with an **Edit** button per team, jumping straight into
+   editing that team.
+5. On save (new registration or an accepted edit), validate against the
    squad rules in §5 before writing to the database.
 
 ---
