@@ -104,7 +104,26 @@ writes to. No separate staging node for v1. This means self-service entries
 and admin-entered entries are indistinguishable in storage; if that turns
 out to be a problem (e.g. for moderation), a `source: "manager-app"` /
 `source: "capture"` tag on each record is a cheap addition worth
-considering in a follow-up.
+considering in a follow-up (this app does add a `source` field to its own
+writes already — capture's existing records just don't have one).
+
+**Record shape — verified live 2026-08-18** (see `src/lib/types.ts` for the
+canonical TypeScript types):
+
+- The identity field on a stored record is **`manager`** (a `name` field
+  duplicating it also appears on newer records — both are kept in sync on
+  write, but `manager` is authoritative for lookups).
+- Squad picks live in **`teamDetails`**: an array of
+  `{ playerId, playerDetails: {...} }` — note `playerId` sits *outside*
+  `playerDetails`, not nested inside it.
+- Squad value is stored as **`teamValue`** (not `totalValue`).
+- `mobile` and `formation` are additive fields this app introduces;
+  capture-created records never have a `mobile`, which is exactly what
+  makes them safe from ever colliding with a self-service lookup.
+- Some seeded/legacy records use an entirely different, older shape (a
+  `players` array with different field names, no `teamDetails`) — stale
+  2025/26 test data. This app skips records without `teamDetails` during
+  identity resolution rather than erroring on them.
 
 ---
 
