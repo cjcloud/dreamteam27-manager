@@ -125,6 +125,21 @@ canonical TypeScript types):
   2025/26 test data. This app skips records without `teamDetails` during
   identity resolution rather than erroring on them.
 
+**Player pool shape (`/1/playerData`) — verified live 2026-08-18, found to
+differ from documentation:** `API-CONTRACT-player-retrieval.md` §6 (owned by
+`dreamteam27-capture`) documents the pool as `playerId`/`playerName`/
+`playerPosition`/`playerValue`/`gwpts`/`gwtotalPts`/etc. A live smoke test of
+the deployed `/api/players` endpoint found production records actually use a
+different shape: `{ id, displayName, firstName, lastName, position,
+playerClub, price, status, gameweekPoints, totalPoints }`. Since capture and
+display apparently work correctly against this real shape today, the
+contract doc's table looks stale rather than production being wrong — so
+this app adapts to reality rather than touching capture's contract-governed
+pipeline. `src/lib/poolNormalize.ts` handles the mapping (and passes through
+unchanged if the pool is ever actually in the documented shape). Worth
+flagging to whoever owns the capture contract doc, since it's meant to be
+authoritative.
+
 ---
 
 ## 7. Access control
