@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { BUDGET_CAP, POSITION_MAX, SQUAD_SIZE } from "@/lib/constants";
+import { ALLOWED_FORMATIONS, BUDGET_CAP, POSITION_MAX, SQUAD_SIZE } from "@/lib/constants";
 import { canAddPlayer, possibleFormations, totalValue, validateSquadForSave } from "@/lib/squadRules";
 import type { FlatManagerRecord, PoolPlayer, Position } from "@/lib/types";
 
@@ -89,11 +89,16 @@ export default function Page() {
   }, [squad]);
 
   const value = useMemo(() => totalValue(squad), [squad]);
-  const formationOptions = useMemo(() => possibleFormations(squad), [squad]);
+  // Formations the CURRENT squad's DEF/MID/STR split already matches — used
+  // only to auto-select once there's a unique match, not to restrict what's
+  // choosable (see the dropdown below: all 7 are always offered, since a
+  // manager should be able to pick a target formation before finishing
+  // their squad, not just after).
+  const matchingFormations = useMemo(() => possibleFormations(squad), [squad]);
 
   useEffect(() => {
-    if (formationOptions.length === 1) setFormation(formationOptions[0]!);
-  }, [formationOptions]);
+    if (matchingFormations.length === 1) setFormation(matchingFormations[0]!);
+  }, [matchingFormations]);
 
   const filteredPool = useMemo(() => {
     return pool.filter((p) => {
@@ -241,24 +246,36 @@ export default function Page() {
 
           <div className="bg-[var(--dt-surface)] p-4 rounded-lg">
             <label className="block mb-1 text-sm">Formation</label>
+            <p className="text-xs text-[var(--dt-content-muted)] mb-2">
+              Pick your target formation, or leave it — it&apos;ll auto-select once your squad&apos;s
+              DEF/MID/STR split uniquely matches one.
+            </p>
             <select
               className="rounded px-3 py-2 bg-black/30 border border-[var(--dt-border)]"
               value={formation}
               onChange={(e) => setFormation(e.target.value)}
-              disabled={formationOptions.length === 0}
             >
               <option value="">Select formation…</option>
-              {formationOptions.map((f) => (
+              {ALLOWED_FORMATIONS.map((f) => (
                 <option key={f} value={f}>
                   {f}
                 </option>
               ))}
             </select>
-            {squad.length === SQUAD_SIZE && formationOptions.length === 0 && (
+            {squad.length === SQUAD_SIZE && matchingFormations.length === 0 && (
               <p className="text-[var(--dt-danger)] text-sm mt-2">
                 This DEF/MID/STR split doesn&apos;t match any allowed formation.
               </p>
             )}
+            {squad.length === SQUAD_SIZE &&
+              matchingFormations.length > 0 &&
+              formation &&
+              !matchingFormations.includes(formation) && (
+                <p className="text-[var(--dt-danger)] text-sm mt-2">
+                  Your squad&apos;s actual split is {matchingFormations.join(" or ")}, not {formation}
+                  — update the formation to match before saving.
+                </p>
+              )}
           </div>
 
           <div className="grid md:grid-cols-2 gap-6">
