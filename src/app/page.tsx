@@ -23,6 +23,20 @@ interface TeamSummary {
   playerCount: number;
 }
 
+// "Anglicises" a name for search matching: strips accents/diacritics so a
+// manager typing plain ASCII (e.g. "Vuskovic") still finds a player stored
+// with the correct spelling (e.g. "Vušković"). Unicode NFD decomposition
+// splits an accented letter into its base letter + a separate combining
+// mark (š → s + ˇ), so stripping the combining-marks Unicode block leaves
+// just the base letters. Covers umlauts, acutes, carons, cedillas, etc. —
+// the common case for European player names in the pool.
+function foldForSearch(s: string): string {
+  return s
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
 const MOBILE_LENGTH = 11;
 
 // Mobile numbers must be digits only, starting "07", exactly 11 digits
@@ -245,7 +259,7 @@ export default function Page() {
   const filteredPool = useMemo(() => {
     return pool.filter((p) => {
       if (posFilter !== "ALL" && p.playerPosition !== posFilter) return false;
-      if (search.trim() && !p.playerName.toLowerCase().includes(search.trim().toLowerCase())) return false;
+      if (search.trim() && !foldForSearch(p.playerName).includes(foldForSearch(search.trim()))) return false;
       return true;
     });
   }, [pool, posFilter, search]);
