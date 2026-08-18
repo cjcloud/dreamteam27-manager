@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
-import { ALLOWED_FORMATIONS, BUDGET_CAP, POSITION_MAX, SQUAD_SIZE } from "@/lib/constants";
+import { ALLOWED_FORMATIONS, BUDGET_CAP, POSITION_MAX, SQUAD_SIZE, isEditingOpen } from "@/lib/constants";
 import {
   canAddPlayer,
   parseFormationShape,
@@ -64,6 +64,18 @@ function sanitizeMobileInput(raw: string): { digits: string; warning: string | n
 }
 
 export default function Page() {
+  // Whether the app is inside its registration/edit window at all — once
+  // this flips false (the Friday cutoff), the whole app is retired: no
+  // browsing to the identify form, just a static closed message. Re-checked
+  // every 30s so a tab left open across the exact cutoff moment updates on
+  // its own rather than needing a refresh. This is a UX nicety only — the
+  // real guard is server-side (isEditingOpen() in every API route).
+  const [registrationWindowOpen, setRegistrationWindowOpen] = useState(() => isEditingOpen());
+  useEffect(() => {
+    const id = setInterval(() => setRegistrationWindowOpen(isEditingOpen()), 30_000);
+    return () => clearInterval(id);
+  }, []);
+
   const [step, setStep] = useState<Step>("identify");
   const [mode, setMode] = useState<Mode>("create");
   const [name, setName] = useState("");
@@ -459,6 +471,17 @@ export default function Page() {
         Build and manage your own fantasy squad. Edits close Friday 21 August 2026, 19:59 (UK time).
       </p>
 
+      {!registrationWindowOpen ? (
+        <div className="bg-[var(--dt-surface)] p-6 rounded-lg space-y-2">
+          <p className="text-lg font-semibold">Registration and editing are now closed.</p>
+          <p className="text-[var(--dt-content-muted)]">
+            The deadline (Friday 21 August 2026, 19:59 UK time) has passed, so dreamteam27-manager is no
+            longer accepting new teams or changes to existing ones. Head to DreamTeam27&apos;s other apps
+            to follow the season.
+          </p>
+        </div>
+      ) : (
+        <>
       {step === "identify" && (
         <div className="space-y-4 bg-[var(--dt-surface)] p-6 rounded-lg">
           <div>
@@ -796,6 +819,8 @@ export default function Page() {
             ← Back
           </button>
         </div>
+      )}
+        </>
       )}
     </main>
   );

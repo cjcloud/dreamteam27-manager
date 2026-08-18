@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { nextIndex, nextManagerId, readManagers, writeManagerAt } from "@/lib/managersDb";
 import { resolveIdentity, isAdminPlaceholder } from "@/lib/identity";
 import { validateSquadForSave, totalValue } from "@/lib/squadRules";
+import { isEditingOpen, EDIT_CUTOFF_ISO } from "@/lib/constants";
 import { toTeamDetailEntry } from "@/lib/types";
 import type { PoolPlayer } from "@/lib/types";
 
@@ -11,8 +12,20 @@ import type { PoolPlayer } from "@/lib/types";
 // If identity actually resolves to "edit" by the time this runs, the
 // client should have used /api/update instead — this route refuses rather
 // than silently overwriting.
+//
+// Registrations close at the same cutoff as edits (docs/SPEC-manager-app.md
+// §4/§8): once the deadline passes, the app is fully retired — no new
+// teams, no changes to existing ones. This was previously an open
+// question in the spec; CJ resolved it 2026-08-18 (see §8).
 export async function POST(req: Request) {
   try {
+    if (!isEditingOpen()) {
+      return NextResponse.json(
+        { error: `Registration closed at ${EDIT_CUTOFF_ISO}. dreamteam27-manager is no longer accepting new teams.` },
+        { status: 403 }
+      );
+    }
+
     const body = await req.json();
     const { name, mobile, teamDetails, formation } = body as {
       name: string;

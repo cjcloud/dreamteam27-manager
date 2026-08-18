@@ -106,11 +106,14 @@ Edits are permitted **only until Friday 21 August 2026, 19:59 (Europe/London)**.
 
 - Before the cutoff: existing teams can be viewed and edited via the Edit
   button; new registrations are open.
-- At/after the cutoff: existing teams remain viewable (read-only) but the
-  Edit button is disabled/hidden. New registrations should also be
-  considered closed at this point unless explicitly reopened by CJ — **to be
-  confirmed**; v1 assumes registration and editing share the same cutoff
-  unless told otherwise.
+- At/after the cutoff: **the whole app is retired** — resolved 2026-08-18
+  (previously an open question, see former §8). New registrations, edits,
+  and deletes all close at the same instant; there is no read-only
+  "browse existing teams" mode afterward. `/api/register`, `/api/update`,
+  and `/api/delete` all enforce this server-side (`isEditingOpen()`), and
+  the client shows a static "Registration and editing are now closed"
+  message in place of the whole form rather than letting anyone reach the
+  identify screen at all.
 - The cutoff must be enforced **server-side** (API route / server action) as
   the source of truth. Client-side hiding of the Edit button is a UX nicety
   only — it must not be the only guard, since a direct API call could
@@ -207,8 +210,9 @@ verification before save/edit — out of scope for v1.
 
 ## 8. Open items / follow-ups (not blocking launch)
 
-- [ ] Confirm whether new registrations should also close at the Fri 19:59
-      cutoff, or only edits to existing teams.
+- [x] ~~Confirm whether new registrations should also close at the Fri 19:59
+      cutoff, or only edits to existing teams.~~ Resolved 2026-08-18: both
+      close together, app fully retired at the cutoff (see §4, §11).
 - [ ] Decide whether to tag records with their originating app (`source`
       field) for future moderation/audit.
 - [ ] Decide on abuse mitigation (rate limiting, mobile verification) if
@@ -267,3 +271,69 @@ manager-app tooling, per the requirement that motivated this section.
 - Player pool / pricing data is read-only from this app's perspective and
   governed entirely by `API-CONTRACT-player-retrieval.md` — this app does
   not fetch or write player data, only manager/team records.
+
+---
+
+## 11. Mobile number privacy — investigated 2026-08-18, deferred to season novation
+
+**The finding.** `mobile` is stored in plain text on each manager's record
+at `/0` (§6), and the shared `footieteamz27` Realtime Database's rules
+grant unauthenticated public read on the whole database (currently
+time-gated: `.read: "now < <cutoff-ms>"`, no auth requirement). This means
+any of the three apps — or literally anyone with the database URL — can
+read every manager's mobile number directly, with no login. This is true
+today and has been true since the manager app launched; it wasn't
+introduced by anything in this section.
+
+**Why it isn't being fixed right now.** A real fix (moving `mobile` off
+`/0` into a separately-secured node) touches both this app *and*
+`dreamteam27-capture` (which reads `mobile` from `/0` client-side to decide
+whether to preserve a real number or write the `ADMIN` placeholder — see
+§9), plus a live data migration. Attempting that mid-season, while
+dreamteam27-manager is actively being used for registrations, risks
+breaking live input for no immediate benefit — the exposure isn't new or
+worsening, it's just been correctly identified. CJ's decision (2026-08-18):
+leave it as-is until the registration/edit cutoff (§4), then handle it as
+part of retiring this season's app rather than as a live hotfix.
+
+**One rules experiment that did NOT work, for the record:** a nested
+per-field rule (`"0": { "$index": { "mobile": { ".read": false } } }`)
+was tried and published, then verified (via a direct, cache-busted fetch
+of `/0.json`) to have **no effect** — `mobile` was still fully readable.
+Firebase Realtime Database rules cascade downward and, per Firebase's own
+documented behaviour, **cannot be revoked at a deeper path once granted at
+a shallower one** — since `/0`'s own `.read` rule already grants access,
+a child-level `.read: false` under it is simply not honoured. Field-level
+hiding is not achievable without moving the field to its own path outside
+`/0`. The database rules have since been reverted to their pre-experiment
+state (time-gated, no auth) — nothing about the rules differs from before
+this investigation.
+
+**The plan, in order:**
+
+1. **Now → cutoff (§4):** no change. The app continues to accept
+   registrations and edits as normal.
+2. **At the cutoff:** the app retires itself (§4/§8) — `/api/register`,
+   `/api/update`, and `/api/delete` all refuse, and the UI shows a static
+   closed message. No mobile numbers are touched at this point.
+3. **After the cutoff:** every self-service manager record's `mobile`
+   value is bulk-overwritten to the `ADMIN` placeholder (§9). At that
+   point mobile numbers no longer serve any purpose for the remainder of
+   *this* season — the identity/edit/lookup features that needed them are
+   retired along with the app, and the sister apps (capture, display)
+   never read `mobile` for their own display/scoring purposes anyway
+   (confirmed: `dreamteam27-display` has zero references to `mobile`
+   anywhere in its codebase). This isn't yet implemented as of this
+   writing — needs a small one-off script (Admin SDK, iterate `/0`,
+   overwrite non-`ADMIN` `mobile` values) run once, deliberately after the
+   cutoff, not before.
+4. **At next season's code novation:** this is when the real fix happens.
+   The mobile numbers collected this season are needed again next season
+   (re-registering returning managers should presumably be easier, or at
+   minimum the historical record has value), so they aren't deleted — but
+   the *access model* gets tidied up properly at that point: moving
+   `mobile` to its own API-protected path/node (not directly exposed via
+   open database rules), updating both this app and capture's reads/writes
+   accordingly, and only then re-securing it. Doing this at novation time
+   rather than mid-season means it can be done as part of a planned
+   rebuild rather than a live patch to a database three apps depend on.
