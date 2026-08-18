@@ -43,6 +43,16 @@ export async function writeManagerAt(index: number, record: ManagerRecord): Prom
   await adminDb().ref(`${DB_PATHS.MANAGERS}/${index}`).set(record);
 }
 
+// Removes a manager record entirely (self-service team deletion). Uses
+// Firebase's `.remove()` rather than `.set(null)` for clarity, though both
+// have the same effect. If `/0` is stored as a JS array, this leaves a
+// hole (a null entry) at that index rather than shifting everything else
+// down — readManagers() already filters those out, and other records'
+// indices (used as their identity/edit target) must never shift.
+export async function deleteManagerAt(index: number): Promise<void> {
+  await adminDb().ref(`${DB_PATHS.MANAGERS}/${index}`).remove();
+}
+
 export async function readPlayerPool() {
   const snap = await adminDb().ref(DB_PATHS.PLAYER_DATA).get();
   const val = snap.val();

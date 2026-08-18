@@ -11,7 +11,7 @@ import {
 } from "@/lib/squadRules";
 import type { FlatManagerRecord, PoolPlayer, Position } from "@/lib/types";
 
-type Step = "identify" | "showExisting" | "squad" | "done" | "teamsList";
+type Step = "identify" | "showExisting" | "squad" | "done" | "teamsList" | "deleted";
 type Mode = "create" | "edit";
 
 interface TeamSummary {
@@ -72,6 +72,8 @@ export default function Page() {
   const [saveError, setSaveError] = useState<string[] | null>(null);
   const [saving, setSaving] = useState(false);
   const [finalName, setFinalName] = useState("");
+  const [deleting, setDeleting] = useState(false);
+  const [deletedName, setDeletedName] = useState("");
 
   const [teamsList, setTeamsList] = useState<TeamSummary[]>([]);
   const [teamsListLoading, setTeamsListLoading] = useState(false);
@@ -247,6 +249,37 @@ export default function Page() {
     }
   }
 
+  // Deletes the team currently being edited. Only reachable when
+  // mode === "edit" (there's an existingIndex to delete), and gated on the
+  // "usual" browser confirm() prompt before anything irreversible happens —
+  // the actual authorization/ownership re-check still happens server-side
+  // in /api/delete, same as every other write in this app.
+  async function handleDelete() {
+    if (existingIndex == null) return;
+    const confirmed = window.confirm(
+      `Delete ${name}'s team? This cannot be undone.`
+    );
+    if (!confirmed) return;
+
+    setDeleting(true);
+    setSaveError(null);
+    try {
+      const res = await fetch("/api/delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ index: existingIndex, name, mobile }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Delete failed.");
+      setDeletedName(name);
+      setStep("deleted");
+    } catch (err) {
+      setSaveError([err instanceof Error ? err.message : "Delete failed."]);
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   // Resets everything back to the identify step so someone can register
   // (or look up) another team without reloading the page — e.g. the same
   // mobile number registering a second team under a different name, per
@@ -270,6 +303,7 @@ export default function Page() {
     setFormation("");
     setSaveError(null);
     setFinalName("");
+    setDeletedName("");
     // Deliberately NOT resetting `pool` — the player list doesn't change
     // between registrations in the same session, no need to refetch it.
   }
@@ -570,12 +604,37 @@ export default function Page() {
             </div>
           )}
 
+          <div className="flex flex-wrap gap-3">
+            <button
+              onClick={handleSave}
+              disabled={saving || deleting}
+              className="bg-[var(--dt-primary)] hover:bg-[var(--dt-primary-hover)] text-[var(--dt-primary-contrast)] px-4 py-2 rounded font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {saving ? "Saving…" : mode === "edit" ? "Save changes" : "Register team"}
+            </button>
+            {mode === "edit" && (
+              <button
+                onClick={handleDelete}
+                disabled={saving || deleting}
+                className="bg-transparent border border-[var(--dt-danger)] text-[var(--dt-danger)] hover:bg-[var(--dt-danger)] hover:text-[var(--dt-bg)] px-4 py-2 rounded font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {deleting ? "Deleting…" : "Delete team"}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {step === "deleted" && (
+        <div className="bg-[var(--dt-surface)] p-6 rounded-lg space-y-2">
+          <p className="text-lg">
+            <strong>{deletedName}</strong>&apos;s team has been deleted.
+          </p>
           <button
-            onClick={handleSave}
-            disabled={saving}
-            className="bg-[var(--dt-primary)] hover:bg-[var(--dt-primary-hover)] text-[var(--dt-primary-contrast)] px-4 py-2 rounded font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            onClick={startAnotherTeam}
+            className="bg-[var(--dt-primary)] hover:bg-[var(--dt-primary-hover)] text-[var(--dt-primary-contrast)] px-4 py-2 rounded font-semibold transition-colors mt-2"
           >
-            {saving ? "Saving…" : mode === "edit" ? "Save changes" : "Register team"}
+            Back to start
           </button>
         </div>
       )}

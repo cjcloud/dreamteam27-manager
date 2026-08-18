@@ -73,6 +73,26 @@ stored manager name — it is not recalculated on every read.
 
 ---
 
+## 3a. Deleting a team
+
+While editing an existing team (squad-building screen, `mode === "edit"`),
+a **Delete team** button is available. It's gated behind a browser
+`confirm()` prompt ("Delete X's team? This cannot be undone.") before
+anything happens — the "usual confirmation" pattern used for any
+irreversible action.
+
+- Enforced server-side by `/api/delete`, which re-checks the exact same
+  guards as `/api/update`: the edit cutoff (§4) must not have passed, the
+  submitted (name, mobile) must match the record being deleted, and
+  ADMIN-placeholder records can never be a self-service delete target.
+- Deletion removes the record from `/0` entirely (`deleteManagerAt` in
+  `src/lib/managersDb.ts`, via Firebase `.remove()`). If `/0` happens to be
+  stored as a JS array, this leaves a hole at that index rather than
+  shifting later records down — other managers' indices (their edit
+  target) must never shift as a side effect of someone else's delete.
+- After a successful delete, the manager sees a simple "team deleted"
+  confirmation with a button back to the start — no undo.
+
 ## 4. Edit cutoff
 
 Edits are permitted **only until Friday 21 August 2026, 19:59 (Europe/London)**.
