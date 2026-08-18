@@ -155,7 +155,9 @@ export default function Page() {
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-10">
-      <h1 className="text-2xl font-bold mb-1">DreamTeam27 — Register Your Team</h1>
+      <h1 className="text-2xl font-bold mb-1">
+        Dream<span className="text-[var(--dt-accent)]">Team</span>27 — Register Your Team
+      </h1>
       <p className="text-[var(--dt-content-muted)] mb-8">
         Build and manage your own fantasy squad. Edits close Friday 21 August 2026, 19:59 (UK time).
       </p>
@@ -165,7 +167,7 @@ export default function Page() {
           <div>
             <label className="block mb-1 text-sm">Your name</label>
             <input
-              className="w-full rounded px-3 py-2 bg-black/30 border border-[var(--dt-border)]"
+              className="w-full rounded px-3 py-2 bg-[var(--dt-input-bg)] border border-[var(--dt-border)] focus:border-[var(--dt-border-focus)] focus:outline-none focus:ring-1 focus:ring-[var(--dt-border-focus)]"
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g. Brian"
@@ -174,7 +176,7 @@ export default function Page() {
           <div>
             <label className="block mb-1 text-sm">Mobile number</label>
             <input
-              className="w-full rounded px-3 py-2 bg-black/30 border border-[var(--dt-border)]"
+              className="w-full rounded px-3 py-2 bg-[var(--dt-input-bg)] border border-[var(--dt-border)] focus:border-[var(--dt-border-focus)] focus:outline-none focus:ring-1 focus:ring-[var(--dt-border-focus)]"
               value={mobile}
               onChange={(e) => setMobile(e.target.value)}
               placeholder="e.g. 07700 900123"
@@ -188,7 +190,7 @@ export default function Page() {
           <button
             type="submit"
             disabled={identifyLoading}
-            className="bg-[var(--dt-primary)] px-4 py-2 rounded font-medium disabled:opacity-50"
+            className="bg-[var(--dt-primary)] hover:bg-[var(--dt-primary-hover)] text-[var(--dt-primary-contrast)] px-4 py-2 rounded font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {identifyLoading ? "Checking…" : "Continue"}
           </button>
@@ -212,7 +214,7 @@ export default function Page() {
             ))}
           </ul>
           {editingOpen ? (
-            <button onClick={startEdit} className="bg-[var(--dt-primary)] px-4 py-2 rounded font-medium">
+            <button onClick={startEdit} className="bg-[var(--dt-primary)] hover:bg-[var(--dt-primary-hover)] text-[var(--dt-primary-contrast)] px-4 py-2 rounded font-semibold transition-colors">
               Edit this team
             </button>
           ) : (
@@ -220,7 +222,7 @@ export default function Page() {
               Editing closed Friday 21 August 2026, 19:59 — this team is now locked.
             </p>
           )}
-          <button onClick={() => setStep("identify")} className="block text-sm underline text-[var(--dt-content-muted)]">
+          <button onClick={() => setStep("identify")} className="block text-sm underline text-[var(--dt-content-muted)] hover:text-[var(--dt-content)] transition-colors">
             ← Not you? Go back
           </button>
         </div>
@@ -251,7 +253,7 @@ export default function Page() {
               DEF/MID/STR split uniquely matches one.
             </p>
             <select
-              className="rounded px-3 py-2 bg-black/30 border border-[var(--dt-border)]"
+              className="rounded px-3 py-2 bg-[var(--dt-input-bg)] border border-[var(--dt-border)] focus:border-[var(--dt-border-focus)] focus:outline-none focus:ring-1 focus:ring-[var(--dt-border-focus)]"
               value={formation}
               onChange={(e) => setFormation(e.target.value)}
             >
@@ -280,14 +282,14 @@ export default function Page() {
 
           <div className="grid md:grid-cols-2 gap-6">
             <div className="bg-[var(--dt-surface)] p-4 rounded-lg">
-              <h2 className="font-semibold mb-2">Your squad</h2>
+              <h2 className="font-semibold mb-2 text-[var(--dt-content)]">Your squad</h2>
               <ul className="space-y-1">
                 {squad.map((p) => (
                   <li key={p.playerId} className="flex justify-between text-sm">
                     <span>
                       {p.playerName} ({p.playerPosition}, {p.playerClub}) · £{p.playerValue}M
                     </span>
-                    <button onClick={() => removePlayer(p.playerId)} className="text-[var(--dt-danger)]">
+                    <button onClick={() => removePlayer(p.playerId)} className="text-[var(--dt-danger)] font-medium hover:underline shrink-0 ml-2">
                       remove
                     </button>
                   </li>
@@ -296,16 +298,16 @@ export default function Page() {
             </div>
 
             <div className="bg-[var(--dt-surface)] p-4 rounded-lg">
-              <h2 className="font-semibold mb-2">Add players</h2>
+              <h2 className="font-semibold mb-2 text-[var(--dt-content)]">Add players</h2>
               <div className="flex gap-2 mb-2">
                 <input
-                  className="flex-1 rounded px-2 py-1 bg-black/30 border border-[var(--dt-border)] text-sm"
+                  className="flex-1 rounded px-2 py-1 bg-[var(--dt-input-bg)] border border-[var(--dt-border)] focus:border-[var(--dt-border-focus)] focus:outline-none focus:ring-1 focus:ring-[var(--dt-border-focus)] text-sm"
                   placeholder="Search…"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                 />
                 <select
-                  className="rounded px-2 py-1 bg-black/30 border border-[var(--dt-border)] text-sm"
+                  className="rounded px-2 py-1 bg-[var(--dt-input-bg)] border border-[var(--dt-border)] focus:border-[var(--dt-border-focus)] focus:outline-none focus:ring-1 focus:ring-[var(--dt-border-focus)] text-sm"
                   value={posFilter}
                   onChange={(e) => setPosFilter(e.target.value as Position | "ALL")}
                 >
@@ -325,7 +327,7 @@ export default function Page() {
                       <span>
                         {p.playerName} ({p.playerPosition}, {p.playerClub}) · £{p.playerValue}M
                       </span>
-                      <button onClick={() => addPlayer(p)} className="text-[var(--dt-accent)]">
+                      <button onClick={() => addPlayer(p)} className="text-[var(--dt-accent)] font-semibold hover:underline shrink-0 ml-2">
                         add
                       </button>
                     </li>
@@ -346,7 +348,7 @@ export default function Page() {
           <button
             onClick={handleSave}
             disabled={saving}
-            className="bg-[var(--dt-primary)] px-4 py-2 rounded font-medium disabled:opacity-50"
+            className="bg-[var(--dt-primary)] hover:bg-[var(--dt-primary-hover)] text-[var(--dt-primary-contrast)] px-4 py-2 rounded font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {saving ? "Saving…" : mode === "edit" ? "Save changes" : "Register team"}
           </button>

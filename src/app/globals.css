@@ -1,17 +1,32 @@
 @import "tailwindcss";
 
+/* Matches the documented DreamTeam27 brand palette (see PROJECT-STATUS.md
+   §3.1, as used by dreamteam27-display) rather than an ad-hoc dark theme —
+   original version here was too low-contrast: surface sat too close to the
+   page background and muted text was barely distinguishable. */
 :root {
-  --dt-bg: #0a0a0a;
-  --dt-surface: #1b2430;
-  --dt-primary: #4361ee;
-  --dt-accent: #c7f900;
-  --dt-content: #f2f2f2;
-  --dt-content-muted: #9fb3c8;
-  --dt-border: #26262e;
-  --dt-danger: #ef4444;
+  --dt-bg: #0a0a0a; /* page background (near-black) */
+  --dt-surface: #334155; /* slate card surface — was #1b2430, too close to bg */
+  --dt-surface-2: #1b4d3e; /* Sherwood green — used sparingly for emphasis bands */
+  --dt-input-bg: #1e293b; /* distinct from surface so inputs read as inputs */
+  --dt-primary: #4361ee; /* buttons / links */
+  --dt-primary-hover: #5a76f5;
+  --dt-primary-contrast: #ffffff;
+  --dt-accent: #c7f900; /* electric lime — brand highlight */
+  --dt-content: #f8fafc; /* main text — brighter than before */
+  --dt-content-muted: #b8c7d9; /* was #9fb3c8 (too dim); still muted but readable on slate */
+  --dt-border: #475569; /* was #26262e — too dark to read as a border on dark surfaces */
+  --dt-border-focus: #7c93f0;
+  --dt-danger: #f87171; /* was #ef4444 — brighter for readability on dark surfaces */
+  --dt-success: #86efac;
 }
 
 body {
   background: var(--dt-bg);
   color: var(--dt-content);
+}
+
+::selection {
+  background: var(--dt-accent);
+  color: #0a0a0a;
 }
