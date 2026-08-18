@@ -26,6 +26,11 @@ europe-west1).
 ## 2. Identity model — the core rule
 
 A team is uniquely identified by the pair **(manager name, mobile number)**.
+Name matching is **case-insensitive** — `cj` and `Cj` are treated as the same
+manager for lookup, edit-matching, and suffix-collision purposes (added
+2026-08-18, `src/lib/identity.ts`). The name is still stored and displayed
+using whatever casing was typed at registration; only the comparison is
+case-insensitive.
 
 | Scenario | Behaviour |
 |---|---|
@@ -41,14 +46,26 @@ stored manager name — it is not recalculated on every read.
 
 ## 3. Lookup-before-save flow
 
-1. Manager enters **name** + **mobile number**.
-2. App queries existing teams in `/0` for an exact (name, mobile) match.
-   - **Match found** → display that team's current squad, formation, and
-     value, read-only. Show an **Edit** button (see §4 for the cutoff rule).
-   - **No match, but name exists under a different mobile** → proceed to
-     registration, auto-suffixing the name per §2.
-   - **No match at all** → proceed to a fresh registration form.
-3. On save (new registration or an accepted edit), validate against the
+1. Manager enters **mobile number** first, then **name** (mobile is asked
+   for first in the UI since it's also the key used by the "List my teams"
+   lookup below).
+2. As soon as both fields are filled, the app checks (debounced, live —
+   `/api/lookup`) whether that exact (name, mobile) pair already has a team,
+   and shows exactly one of:
+   - **Register** button — no match exists yet. Proceeds to a fresh
+     registration/squad-building form, auto-suffixing the name per §2 if the
+     base name is already taken under a different mobile.
+   - **Edit** button, plus the advisory text "This team exists" — an exact
+     match was found. Proceeds to the read-only team preview (§2's existing
+     "showExisting" screen) with its own **Edit this team** button to start
+     editing (see §4 for the cutoff rule, which also disables this button
+     directly).
+3. A **List my teams** button is available at all times once a mobile
+   number has been entered (independent of whether a name has also been
+   typed) — looks up every non-ADMIN team registered under that mobile via
+   `/api/teams-by-mobile` and lists them with an **Edit** button per team,
+   jumping straight into editing that team.
+4. On save (new registration or an accepted edit), validate against the
    squad rules in §5 before writing to the database.
 
 ---

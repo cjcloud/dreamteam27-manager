@@ -33,6 +33,19 @@ export default function Page() {
   const [editingOpen, setEditingOpen] = useState(true);
   const [identifyError, setIdentifyError] = useState<string | null>(null);
   const [identifyLoading, setIdentifyLoading] = useState(false);
+  // Live result of checking the current (name, mobile) pair against the
+  // database, refreshed automatically as the manager types — drives which
+  // action button (Register vs. Edit) is active on the identify screen.
+  const [checkResult, setCheckResult] = useState<
+    | { mode: "edit"; index: number; manager: FlatManagerRecord; editingOpen: boolean }
+    | { mode: "create"; assignedName: string }
+    | null
+  >(null);
+  // Which step to return to from the "List your teams" results — set to
+  // whichever step the button was pressed from (identify screen or the
+  // post-save "done" screen), so Back doesn't always dump the user back at
+  // the start.
+  const [teamsListReturnStep, setTeamsListReturnStep] = useState<Step>("identify");
 
   const [pool, setPool] = useState<PoolPlayer[]>([]);
   const [poolLoading, setPoolLoading] = useState(false);
@@ -58,38 +71,56 @@ export default function Page() {
       .finally(() => setPoolLoading(false));
   }, [step, pool.length]);
 
-  async function handleIdentify(e: React.FormEvent) {
-    e.preventDefault();
-    setIdentifyError(null);
+  // As soon as both a name and mobile number are entered on the identify
+  // screen, silently check (debounced) whether that exact pair already has
+  // a team, so the Register/Edit button can reflect reality without the
+  // manager having to press a "Continue" button first.
+  useEffect(() => {
+    if (step !== "identify") return;
     if (!name.trim() || !mobile.trim()) {
-      setIdentifyError("Enter both your name and mobile number.");
+      setCheckResult(null);
+      setIdentifyError(null);
       return;
     }
-    setIdentifyLoading(true);
-    try {
-      const res = await fetch("/api/lookup", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, mobile }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Lookup failed.");
-
-      if (data.mode === "edit") {
-        setExistingIndex(data.index);
-        setExistingManager(data.manager);
-        setEditingOpen(data.editingOpen);
-        setStep("showExisting");
-      } else {
-        setAssignedName(data.assignedName);
-        setMode("create");
-        setStep("squad");
+    const handle = setTimeout(async () => {
+      setIdentifyLoading(true);
+      setIdentifyError(null);
+      try {
+        const res = await fetch("/api/lookup", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name, mobile }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error ?? "Lookup failed.");
+        if (data.mode === "edit") {
+          setCheckResult({ mode: "edit", index: data.index, manager: data.manager, editingOpen: data.editingOpen });
+        } else {
+          setCheckResult({ mode: "create", assignedName: data.assignedName });
+        }
+      } catch (err) {
+        setCheckResult(null);
+        setIdentifyError(err instanceof Error ? err.message : "Something went wrong.");
+      } finally {
+        setIdentifyLoading(false);
       }
-    } catch (err) {
-      setIdentifyError(err instanceof Error ? err.message : "Something went wrong.");
-    } finally {
-      setIdentifyLoading(false);
-    }
+    }, 400);
+    return () => clearTimeout(handle);
+  }, [step, name, mobile]);
+
+  function confirmRegisterFromCheck() {
+    if (checkResult?.mode !== "create") return;
+    setAssignedName(checkResult.assignedName);
+    setMode("create");
+    setStep("squad");
+  }
+
+  function confirmEditFromCheck() {
+    if (checkResult?.mode !== "edit") return;
+    setExistingIndex(checkResult.index);
+    setExistingManager(checkResult.manager);
+    setEditingOpen(checkResult.editingOpen);
+    setStep("showExisting");
   }
 
   function startEdit() {
@@ -204,6 +235,7 @@ export default function Page() {
     setExistingManager(null);
     setEditingOpen(true);
     setIdentifyError(null);
+    setCheckResult(null);
     setSearch("");
     setPosFilter("ALL");
     setSquad([]);
@@ -221,6 +253,7 @@ export default function Page() {
   async function listMyTeams() {
     setTeamsListError(null);
     setTeamsListLoading(true);
+    const returnStep = step;
     try {
       const res = await fetch("/api/teams-by-mobile", {
         method: "POST",
@@ -230,7 +263,44 @@ export default function Page() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Lookup failed.");
       setTeamsList(data.teams ?? []);
+      setTeamsListReturnStep(returnStep);
       setStep("teamsList");
+    } catch (err) {
+      setTeamsListError(err instanceof Error ? err.message : "Something went wrong.");
+    } finally {
+      setTeamsListLoading(false);
+    }
+  }
+
+  // Jumps straight from a "List your teams" result row into editing that
+  // team, re-resolving identity server-side via /api/lookup (using the
+  // team's stored name + the mobile number already entered) rather than
+  // trusting the summary row alone, so the edit cutoff and ADMIN-record
+  // guard are re-checked with fresh data.
+  async function editTeamFromList(t: TeamSummary) {
+    setTeamsListError(null);
+    setTeamsListLoading(true);
+    try {
+      const res = await fetch("/api/lookup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: t.name, mobile }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Lookup failed.");
+      if (data.mode !== "edit") throw new Error("Could not find that team.");
+      if (!data.editingOpen) {
+        setTeamsListError("Editing closed Friday 21 August 2026, 19:59 — this team is now locked.");
+        return;
+      }
+      setName(t.name);
+      setMode("edit");
+      setExistingIndex(data.index);
+      setExistingManager(data.manager);
+      setEditingOpen(data.editingOpen);
+      setSquad(data.manager.teamDetails ?? []);
+      setFormation(data.manager.formation ?? "");
+      setStep("squad");
     } catch (err) {
       setTeamsListError(err instanceof Error ? err.message : "Something went wrong.");
     } finally {
@@ -248,16 +318,7 @@ export default function Page() {
       </p>
 
       {step === "identify" && (
-        <form onSubmit={handleIdentify} className="space-y-4 bg-[var(--dt-surface)] p-6 rounded-lg">
-          <div>
-            <label className="block mb-1 text-sm">Your name</label>
-            <input
-              className="w-full rounded px-3 py-2 bg-[var(--dt-input-bg)] border border-[var(--dt-border)] focus:border-[var(--dt-border-focus)] focus:outline-none focus:ring-1 focus:ring-[var(--dt-border-focus)]"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. Brian"
-            />
-          </div>
+        <div className="space-y-4 bg-[var(--dt-surface)] p-6 rounded-lg">
           <div>
             <label className="block mb-1 text-sm">Mobile number</label>
             <input
@@ -271,15 +332,57 @@ export default function Page() {
               same name apart) — it&apos;s never shown publicly or displayed anywhere in the league.
             </p>
           </div>
+          <div>
+            <label className="block mb-1 text-sm">Your name</label>
+            <input
+              className="w-full rounded px-3 py-2 bg-[var(--dt-input-bg)] border border-[var(--dt-border)] focus:border-[var(--dt-border-focus)] focus:outline-none focus:ring-1 focus:ring-[var(--dt-border-focus)]"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="e.g. Brian"
+            />
+          </div>
           {identifyError && <p className="text-[var(--dt-danger)] text-sm">{identifyError}</p>}
-          <button
-            type="submit"
-            disabled={identifyLoading}
-            className="bg-[var(--dt-primary)] hover:bg-[var(--dt-primary-hover)] text-[var(--dt-primary-contrast)] px-4 py-2 rounded font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {identifyLoading ? "Checking…" : "Continue"}
-          </button>
-        </form>
+          <div className="flex flex-wrap gap-3 items-center pt-1">
+            <button
+              type="button"
+              onClick={listMyTeams}
+              disabled={!mobile.trim() || teamsListLoading}
+              className="bg-[var(--dt-surface-2)] hover:opacity-90 text-[var(--dt-content)] px-4 py-2 rounded font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {teamsListLoading ? "Looking up…" : "List my teams"}
+            </button>
+
+            {checkResult?.mode === "edit" && (
+              <>
+                <button
+                  type="button"
+                  onClick={confirmEditFromCheck}
+                  disabled={!checkResult.editingOpen}
+                  className="bg-[var(--dt-primary)] hover:bg-[var(--dt-primary-hover)] text-[var(--dt-primary-contrast)] px-4 py-2 rounded font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Edit
+                </button>
+                <span className="text-sm text-[var(--dt-content-muted)]">
+                  This team exists{!checkResult.editingOpen ? " — editing is closed" : ""}
+                </span>
+              </>
+            )}
+
+            {checkResult?.mode === "create" && (
+              <button
+                type="button"
+                onClick={confirmRegisterFromCheck}
+                className="bg-[var(--dt-primary)] hover:bg-[var(--dt-primary-hover)] text-[var(--dt-primary-contrast)] px-4 py-2 rounded font-semibold transition-colors"
+              >
+                Register
+              </button>
+            )}
+
+            {!checkResult && identifyLoading && (
+              <span className="text-sm text-[var(--dt-content-muted)]">Checking…</span>
+            )}
+          </div>
+        </div>
       )}
 
       {step === "showExisting" && existingManager && (
@@ -487,17 +590,26 @@ export default function Page() {
           ) : (
             <ul className="space-y-2">
               {teamsList.map((t) => (
-                <li key={t.index} className="bg-[var(--dt-input-bg)] rounded p-3 text-sm">
-                  <div className="font-semibold">{t.name}</div>
-                  <div className="text-[var(--dt-content-muted)]">
-                    Formation: {t.formation ?? "—"} · {t.playerCount}/{SQUAD_SIZE} players · £{t.teamValue}M
+                <li key={t.index} className="bg-[var(--dt-input-bg)] rounded p-3 text-sm flex items-center justify-between gap-3">
+                  <div>
+                    <div className="font-semibold">{t.name}</div>
+                    <div className="text-[var(--dt-content-muted)]">
+                      Formation: {t.formation ?? "—"} · {t.playerCount}/{SQUAD_SIZE} players · £{t.teamValue}M
+                    </div>
                   </div>
+                  <button
+                    onClick={() => editTeamFromList(t)}
+                    disabled={teamsListLoading}
+                    className="shrink-0 bg-[var(--dt-primary)] hover:bg-[var(--dt-primary-hover)] text-[var(--dt-primary-contrast)] px-3 py-1.5 rounded font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Edit
+                  </button>
                 </li>
               ))}
             </ul>
           )}
           <button
-            onClick={() => setStep("done")}
+            onClick={() => setStep(teamsListReturnStep)}
             className="block text-sm underline text-[var(--dt-content-muted)] hover:text-[var(--dt-content)] transition-colors"
           >
             ← Back

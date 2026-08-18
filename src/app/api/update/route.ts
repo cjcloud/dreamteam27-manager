@@ -47,9 +47,11 @@ export async function POST(req: Request) {
     // valid self-service edit target — even if someone typed "ADMIN" and
     // it happened to match the stored value (isAdminPlaceholder is
     // case/whitespace-insensitive, so this also catches "admin", " Admin ").
+    // Name comparison is case-insensitive to match identity.ts's
+    // findNameFamily ("cj" and "Cj" are the same manager).
     if (
       isAdminPlaceholder(existing.record.mobile) ||
-      (existing.record.manager ?? "").trim() !== name.trim() ||
+      (existing.record.manager ?? "").trim().toLowerCase() !== name.trim().toLowerCase() ||
       (existing.record.mobile ?? "").trim() !== mobile.trim()
     ) {
       return NextResponse.json({ error: "Name/mobile does not match this team." }, { status: 403 });
