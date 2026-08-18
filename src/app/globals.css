@@ -13,6 +13,7 @@
   --dt-primary-hover: #5a76f5;
   --dt-primary-contrast: #ffffff;
   --dt-accent: #c7f900; /* electric lime — brand highlight */
+  --dt-team-red: #b9203c; /* "Team" in the DreamTeam27 wordmark, everywhere it appears */
   --dt-content: #f8fafc; /* main text — brighter than before */
   --dt-content-muted: #b8c7d9; /* was #9fb3c8 (too dim); still muted but readable on slate */
   --dt-border: #475569; /* was #26262e — too dark to read as a border on dark surfaces */

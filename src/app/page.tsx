@@ -425,7 +425,7 @@ export default function Page() {
   return (
     <main className="mx-auto max-w-3xl px-4 py-10">
       <h1 className="text-2xl font-bold mb-1">
-        Dream<span className="text-[var(--dt-accent)]">Team</span>27 — Register Your Team
+        Dream<span className="text-[var(--dt-team-red)]">Team</span>27 — Register Your Team
       </h1>
       <p className="text-[var(--dt-content-muted)] mb-8">
         Build and manage your own fantasy squad. Edits close Friday 21 August 2026, 19:59 (UK time).
