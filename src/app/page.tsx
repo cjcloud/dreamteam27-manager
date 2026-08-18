@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { ALLOWED_FORMATIONS, BUDGET_CAP, POSITION_MAX, SQUAD_SIZE } from "@/lib/constants";
 import {
@@ -424,9 +425,22 @@ export default function Page() {
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-10">
-      <h1 className="text-2xl font-bold mb-1">
-        Dream<span className="text-[var(--dt-team-red)]">Team</span>27 — Register Your Team
-      </h1>
+      <div className="flex items-center gap-4 mb-2">
+        <Image
+          src="/logo.png"
+          alt="DreamTeam27"
+          width={56}
+          height={56}
+          className="h-14 w-14 rounded-full shrink-0"
+          priority
+        />
+        <div>
+          <h1 className="text-2xl font-bold leading-tight">
+            Dream<span className="text-[var(--dt-team-red)]">Team</span>27
+          </h1>
+          <p className="text-sm text-[var(--dt-content-muted)] leading-tight">Register Your Team</p>
+        </div>
+      </div>
       <p className="text-[var(--dt-content-muted)] mb-8">
         Build and manage your own fantasy squad. Edits close Friday 21 August 2026, 19:59 (UK time).
       </p>
