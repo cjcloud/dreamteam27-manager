@@ -11,8 +11,16 @@ import {
 } from "@/lib/squadRules";
 import type { FlatManagerRecord, PoolPlayer, Position } from "@/lib/types";
 
-type Step = "identify" | "showExisting" | "squad" | "done";
+type Step = "identify" | "showExisting" | "squad" | "done" | "teamsList";
 type Mode = "create" | "edit";
+
+interface TeamSummary {
+  index: number;
+  name: string;
+  formation: string | null;
+  teamValue: number;
+  playerCount: number;
+}
 
 export default function Page() {
   const [step, setStep] = useState<Step>("identify");
@@ -35,6 +43,10 @@ export default function Page() {
   const [saveError, setSaveError] = useState<string[] | null>(null);
   const [saving, setSaving] = useState(false);
   const [finalName, setFinalName] = useState("");
+
+  const [teamsList, setTeamsList] = useState<TeamSummary[]>([]);
+  const [teamsListLoading, setTeamsListLoading] = useState(false);
+  const [teamsListError, setTeamsListError] = useState<string | null>(null);
 
   useEffect(() => {
     if (step !== "squad" || pool.length > 0) return;
@@ -174,6 +186,55 @@ export default function Page() {
       setSaveError([err instanceof Error ? err.message : "Save failed."]);
     } finally {
       setSaving(false);
+    }
+  }
+
+  // Resets everything back to the identify step so someone can register
+  // (or look up) another team without reloading the page — e.g. the same
+  // mobile number registering a second team under a different name, per
+  // docs/SPEC-manager-app.md §2 ("one person/phone can register more than
+  // one team, as long as each name is distinct").
+  function startAnotherTeam() {
+    setStep("identify");
+    setMode("create");
+    setName("");
+    setMobile("");
+    setAssignedName("");
+    setExistingIndex(null);
+    setExistingManager(null);
+    setEditingOpen(true);
+    setIdentifyError(null);
+    setSearch("");
+    setPosFilter("ALL");
+    setSquad([]);
+    setFormation("");
+    setSaveError(null);
+    setFinalName("");
+    // Deliberately NOT resetting `pool` — the player list doesn't change
+    // between registrations in the same session, no need to refetch it.
+  }
+
+  // Looks up every team registered under the mobile number just used (the
+  // one still sitting in `mobile` state from the identify/registration
+  // step) — lets a manager who's registered more than one team (e.g. one
+  // per family member) see all of them at once.
+  async function listMyTeams() {
+    setTeamsListError(null);
+    setTeamsListLoading(true);
+    try {
+      const res = await fetch("/api/teams-by-mobile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mobile }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Lookup failed.");
+      setTeamsList(data.teams ?? []);
+      setStep("teamsList");
+    } catch (err) {
+      setTeamsListError(err instanceof Error ? err.message : "Something went wrong.");
+    } finally {
+      setTeamsListLoading(false);
     }
   }
 
@@ -397,6 +458,50 @@ export default function Page() {
               registered as <strong>{finalName}</strong>.
             </p>
           )}
+          {teamsListError && <p className="text-[var(--dt-danger)] text-sm">{teamsListError}</p>}
+          <div className="flex flex-wrap gap-3 mt-2">
+            <button
+              onClick={startAnotherTeam}
+              className="bg-[var(--dt-primary)] hover:bg-[var(--dt-primary-hover)] text-[var(--dt-primary-contrast)] px-4 py-2 rounded font-semibold transition-colors"
+            >
+              Add another team?
+            </button>
+            <button
+              onClick={listMyTeams}
+              disabled={teamsListLoading}
+              className="bg-[var(--dt-surface-2)] hover:opacity-90 text-[var(--dt-content)] px-4 py-2 rounded font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {teamsListLoading ? "Looking up…" : "List your teams"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {step === "teamsList" && (
+        <div className="bg-[var(--dt-surface)] p-6 rounded-lg space-y-4">
+          <p className="text-lg">
+            Teams registered under <strong>{mobile}</strong>
+          </p>
+          {teamsList.length === 0 ? (
+            <p className="text-sm text-[var(--dt-content-muted)]">No teams found for this mobile number.</p>
+          ) : (
+            <ul className="space-y-2">
+              {teamsList.map((t) => (
+                <li key={t.index} className="bg-[var(--dt-input-bg)] rounded p-3 text-sm">
+                  <div className="font-semibold">{t.name}</div>
+                  <div className="text-[var(--dt-content-muted)]">
+                    Formation: {t.formation ?? "—"} · {t.playerCount}/{SQUAD_SIZE} players · £{t.teamValue}M
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+          <button
+            onClick={() => setStep("done")}
+            className="block text-sm underline text-[var(--dt-content-muted)] hover:text-[var(--dt-content)] transition-colors"
+          >
+            ← Back
+          </button>
         </div>
       )}
     </main>
