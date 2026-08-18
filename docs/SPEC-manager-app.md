@@ -317,16 +317,26 @@ this investigation.
    `/api/update`, and `/api/delete` all refuse, and the UI shows a static
    closed message. No mobile numbers are touched at this point.
 3. **After the cutoff:** every self-service manager record's `mobile`
-   value is bulk-overwritten to the `ADMIN` placeholder (§9). At that
-   point mobile numbers no longer serve any purpose for the remainder of
-   *this* season — the identity/edit/lookup features that needed them are
-   retired along with the app, and the sister apps (capture, display)
-   never read `mobile` for their own display/scoring purposes anyway
-   (confirmed: `dreamteam27-display` has zero references to `mobile`
-   anywhere in its codebase). This isn't yet implemented as of this
-   writing — needs a small one-off script (Admin SDK, iterate `/0`,
-   overwrite non-`ADMIN` `mobile` values) run once, deliberately after the
-   cutoff, not before.
+   value is collated into a restricted archive and then overwritten to
+   the `ADMIN` placeholder in `/0` (§9). At that point mobile numbers no
+   longer serve any purpose for the remainder of *this* season — the
+   identity/edit/lookup features that needed them are retired along with
+   the app, and the sister apps (capture, display) never read `mobile`
+   for their own display/scoring purposes anyway (confirmed:
+   `dreamteam27-display` has zero references to `mobile` anywhere in its
+   codebase). **Implemented 2026-08-18** as a manually-initiated feature
+   in `dreamteam27-capture` (not this app), per CJ's decision that the
+   sanitise process should live there and that the collated numbers must
+   remain retrievable under restricted access rather than being deleted
+   outright: `GET/POST /api/manager-mobile-archive` (Admin SDK,
+   Firebase-ID-token-gated via `verifyAdminRequest()`, not database rules
+   — same field-level-rule limitation as above) and the `/mobile-archive`
+   admin page. `POST` requires `{ confirm: true }`, is idempotent/re-runnable,
+   collates every real (non-`ADMIN`) `mobile` from `/0` into
+   `/secure/managerMobileArchive` keyed by manager, then overwrites just
+   the `mobile` field on each archived `/0` record to `ADMIN`. Nothing
+   runs automatically — this must be manually triggered from the capture
+   app, deliberately after the cutoff, not before.
 4. **At next season's code novation:** this is when the real fix happens.
    The mobile numbers collected this season are needed again next season
    (re-registering returning managers should presumably be easier, or at
