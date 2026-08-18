@@ -339,14 +339,12 @@ export default function Page() {
     setStep("identify");
     setMode("create");
     setName("");
-    setMobile("");
     setAssignedName("");
     setExistingIndex(null);
     setExistingManager(null);
     setEditingOpen(true);
     setIdentifyError(null);
     setCheckResult(null);
-    setMobileWarning(null);
     setSearch("");
     setPosFilter("ALL");
     setSquad([]);
@@ -354,8 +352,12 @@ export default function Page() {
     setSaveError(null);
     setFinalName("");
     setDeletedName("");
-    // Deliberately NOT resetting `pool` — the player list doesn't change
-    // between registrations in the same session, no need to refetch it.
+    // Deliberately NOT resetting `mobile`/`mobileWarning` or `pool` — the
+    // same manager registering a second team almost always uses the same
+    // phone number (per docs/SPEC-manager-app.md §2), so pre-filling it
+    // saves re-typing; they can still edit or clear it manually if it's a
+    // different number this time. The player list doesn't change between
+    // registrations in the same session either, so no need to refetch it.
   }
 
   // Looks up every team registered under the mobile number just used (the
