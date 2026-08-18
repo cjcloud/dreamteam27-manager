@@ -48,7 +48,10 @@ stored manager name — it is not recalculated on every read.
 
 1. Manager enters **mobile number** first, then **name** (mobile is asked
    for first in the UI since it's also the key used by the "List my teams"
-   lookup below).
+   lookup below). The mobile field only accepts digits starting `07` (a UK
+   mobile number) — non-digit characters typed are stripped immediately,
+   and a warning is shown if what's left doesn't start with `07`. This is a
+   client-side UX guard only; it is not (yet) re-validated server-side.
 2. As soon as both fields are filled, the app checks (debounced, live —
    `/api/lookup`) whether that exact (name, mobile) pair already has a team,
    and shows exactly one of:

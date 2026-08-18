@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ChangeEvent } from "react";
 import { ALLOWED_FORMATIONS, BUDGET_CAP, POSITION_MAX, SQUAD_SIZE } from "@/lib/constants";
 import {
   canAddPlayer,
@@ -22,6 +22,21 @@ interface TeamSummary {
   playerCount: number;
 }
 
+// UK mobile numbers only: digits, starting "07". Strips anything typed that
+// isn't a digit (so letters/symbols can never end up in the field) and
+// reports a warning describing why, so the manager sees why their input
+// changed or is being rejected rather than it just silently not working.
+function sanitizeMobileInput(raw: string): { digits: string; warning: string | null } {
+  const digits = raw.replace(/\D/g, "");
+  if (raw !== digits) {
+    return { digits, warning: "Mobile numbers can only contain digits — letters and symbols were removed." };
+  }
+  if (digits.length > 0 && !"07".startsWith(digits) && !digits.startsWith("07")) {
+    return { digits, warning: "Mobile number must start with 07 (a UK mobile number)." };
+  }
+  return { digits, warning: null };
+}
+
 export default function Page() {
   const [step, setStep] = useState<Step>("identify");
   const [mode, setMode] = useState<Mode>("create");
@@ -33,6 +48,7 @@ export default function Page() {
   const [editingOpen, setEditingOpen] = useState(true);
   const [identifyError, setIdentifyError] = useState<string | null>(null);
   const [identifyLoading, setIdentifyLoading] = useState(false);
+  const [mobileWarning, setMobileWarning] = useState<string | null>(null);
   // Live result of checking the current (name, mobile) pair against the
   // database, refreshed automatically as the manager types — drives which
   // action button (Register vs. Edit) is active on the identify screen.
@@ -71,13 +87,24 @@ export default function Page() {
       .finally(() => setPoolLoading(false));
   }, [step, pool.length]);
 
-  // As soon as both a name and mobile number are entered on the identify
-  // screen, silently check (debounced) whether that exact pair already has
-  // a team, so the Register/Edit button can reflect reality without the
-  // manager having to press a "Continue" button first.
+  // Only digits starting "07" count as a plausible UK mobile number — see
+  // sanitizeMobileInput, which already strips non-digit characters as the
+  // manager types, so this is really just the "07" prefix check.
+  const mobileValid = mobile.length > 0 && mobile.startsWith("07");
+
+  function handleMobileChange(e: ChangeEvent<HTMLInputElement>) {
+    const { digits, warning } = sanitizeMobileInput(e.target.value);
+    setMobile(digits);
+    setMobileWarning(warning);
+  }
+
+  // As soon as both a name and a valid mobile number are entered on the
+  // identify screen, silently check (debounced) whether that exact pair
+  // already has a team, so the Register/Edit button can reflect reality
+  // without the manager having to press a "Continue" button first.
   useEffect(() => {
     if (step !== "identify") return;
-    if (!name.trim() || !mobile.trim()) {
+    if (!name.trim() || !mobile.trim() || !mobileValid) {
       setCheckResult(null);
       setIdentifyError(null);
       return;
@@ -106,7 +133,7 @@ export default function Page() {
       }
     }, 400);
     return () => clearTimeout(handle);
-  }, [step, name, mobile]);
+  }, [step, name, mobile, mobileValid]);
 
   function confirmRegisterFromCheck() {
     if (checkResult?.mode !== "create") return;
@@ -236,6 +263,7 @@ export default function Page() {
     setEditingOpen(true);
     setIdentifyError(null);
     setCheckResult(null);
+    setMobileWarning(null);
     setSearch("");
     setPosFilter("ALL");
     setSquad([]);
@@ -324,9 +352,11 @@ export default function Page() {
             <input
               className="w-full rounded px-3 py-2 bg-[var(--dt-input-bg)] border border-[var(--dt-border)] focus:border-[var(--dt-border-focus)] focus:outline-none focus:ring-1 focus:ring-[var(--dt-border-focus)]"
               value={mobile}
-              onChange={(e) => setMobile(e.target.value)}
-              placeholder="e.g. 07700 900123"
+              onChange={handleMobileChange}
+              inputMode="numeric"
+              placeholder="e.g. 07700900123"
             />
+            {mobileWarning && <p className="mt-1 text-xs text-[var(--dt-danger)]">{mobileWarning}</p>}
             <p className="mt-1 text-xs text-[var(--dt-content-muted)]">
               Your mobile number is only used to identify your team (e.g. to tell two managers with the
               same name apart) — it&apos;s never shown publicly or displayed anywhere in the league.
@@ -346,7 +376,7 @@ export default function Page() {
             <button
               type="button"
               onClick={listMyTeams}
-              disabled={!mobile.trim() || teamsListLoading}
+              disabled={!mobileValid || teamsListLoading}
               className="bg-[var(--dt-surface-2)] hover:opacity-90 text-[var(--dt-content)] px-4 py-2 rounded font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {teamsListLoading ? "Looking up…" : "List my teams"}
