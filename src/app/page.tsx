@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ChangeEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { ALLOWED_FORMATIONS, BUDGET_CAP, POSITION_MAX, SQUAD_SIZE } from "@/lib/constants";
 import {
   canAddPlayer,
@@ -82,6 +82,7 @@ export default function Page() {
   const [pool, setPool] = useState<PoolPlayer[]>([]);
   const [poolLoading, setPoolLoading] = useState(false);
   const [search, setSearch] = useState("");
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const [posFilter, setPosFilter] = useState<Position | "ALL">("ALL");
   const [squad, setSquad] = useState<PoolPlayer[]>([]);
   const [formation, setFormation] = useState("");
@@ -256,6 +257,11 @@ export default function Page() {
     }
     setSaveError(null);
     setSquad((s) => [...s, p]);
+    // Clear the search box and put focus back in it so the manager can
+    // immediately keep typing to find the next player, rather than having
+    // to click back into the field each time.
+    setSearch("");
+    searchInputRef.current?.focus();
   }
 
   function removePlayer(playerId: string) {
@@ -615,6 +621,7 @@ export default function Page() {
               <h2 className="font-semibold mb-2 text-[var(--dt-content)]">Add players</h2>
               <div className="flex gap-2 mb-2">
                 <input
+                  ref={searchInputRef}
                   className="flex-1 rounded px-2 py-1 bg-[var(--dt-input-bg)] border border-[var(--dt-border)] focus:border-[var(--dt-border-focus)] focus:outline-none focus:ring-1 focus:ring-[var(--dt-border-focus)] text-sm"
                   placeholder="Search…"
                   value={search}
