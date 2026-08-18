@@ -174,6 +174,10 @@ export default function Page() {
               onChange={(e) => setMobile(e.target.value)}
               placeholder="e.g. 07700 900123"
             />
+            <p className="mt-1 text-xs text-[var(--dt-content-muted)]">
+              Your mobile number is only used to identify your team (e.g. to tell two managers with the
+              same name apart) — it&apos;s never shown publicly or displayed anywhere in the league.
+            </p>
           </div>
           {identifyError && <p className="text-[var(--dt-danger)] text-sm">{identifyError}</p>}
           <button
