@@ -4,6 +4,7 @@ import { isEditingOpen, EDIT_CUTOFF_ISO } from "@/lib/constants";
 import { validateSquadForSave, totalValue } from "@/lib/squadRules";
 import { toTeamDetailEntry } from "@/lib/types";
 import type { PoolPlayer } from "@/lib/types";
+import { isAdminPlaceholder } from "@/lib/identity";
 
 // Edits an existing team in place. The edit cutoff is enforced HERE,
 // server-side — this is the real guard, not the client hiding a button.
@@ -42,8 +43,12 @@ export async function POST(req: Request) {
     }
     // Re-confirm identity ownership: the (name, mobile) submitted must
     // match the record being edited, so an edit request can't be pointed
-    // at someone else's index.
+    // at someone else's index. ADMIN-placeholder records are never a
+    // valid self-service edit target — even if someone typed "ADMIN" and
+    // it happened to match the stored value (isAdminPlaceholder is
+    // case/whitespace-insensitive, so this also catches "admin", " Admin ").
     if (
+      isAdminPlaceholder(existing.record.mobile) ||
       (existing.record.manager ?? "").trim() !== name.trim() ||
       (existing.record.mobile ?? "").trim() !== mobile.trim()
     ) {

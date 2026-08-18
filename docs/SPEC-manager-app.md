@@ -157,7 +157,44 @@ verification before save/edit — out of scope for v1.
 
 ---
 
-## 9. Relationship to other project docs
+## 9. Interop with `dreamteam27-capture` — the `mobile: "ADMIN"` convention
+
+Added 2026-08-18, after launch. Because `mobile` is the second half of this
+app's identity key, but `dreamteam27-capture` doesn't collect a mobile
+number at all, capture needs to write a placeholder so every record at `/0`
+has *some* `mobile` value — otherwise a capture-entered "Brian" and a
+self-service "Brian" would both have `mobile: undefined` and silently
+collide.
+
+**Convention:** every team created or edited via `dreamteam27-capture`
+writes **`mobile: "ADMIN"`** (this is a `capture`-side change — tracked in
+`PROJECT-STATUS.md` §13, not yet implemented as of this writing).
+
+**Why `"ADMIN"` isn't treated as a real mobile number here:** unlike a real
+phone number, `"ADMIN"` is not unique per person — capture can (and does)
+create several differently-named managers that would all carry the exact
+same placeholder. So this app's identity resolution (`src/lib/identity.ts`)
+gives it special handling:
+
+- An `ADMIN` record **still occupies its name** for collision purposes — a
+  self-service registration using the same base name gets auto-suffixed
+  (`Brian` → `Brian/2`) exactly as if a real mobile had taken it.
+- An `ADMIN` record is **never a valid edit-match target** — even if a
+  self-service (name, mobile) pair happened to equal (`Brian`, `ADMIN`),
+  this does not resolve to editing that admin-entered team.
+- Self-service users are **blocked from entering `"ADMIN"` as their own
+  mobile number** (case/whitespace-insensitive) at both `/api/lookup` and
+  `/api/register` — it's reserved, not a value a manager can legitimately
+  hold.
+
+Net effect: capture-entered teams and self-service teams can share a name
+freely without either app corrupting the other's record, and an
+admin-entered team is always recognisable as its own separate record by
+manager-app tooling, per the requirement that motivated this section.
+
+---
+
+## 10. Relationship to other project docs
 
 - Squad/validation rules mirror `dreamteam27-capture`'s managers page —
   see the capture app's own internal validation logic (no separate contract

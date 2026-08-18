@@ -1,18 +1,24 @@
 import { NextResponse } from "next/server";
 import { readManagers } from "@/lib/managersDb";
-import { resolveIdentity } from "@/lib/identity";
+import { resolveIdentity, isAdminPlaceholder } from "@/lib/identity";
 import { isEditingOpen } from "@/lib/constants";
 import { fromTeamDetailEntry } from "@/lib/types";
 
 // Peek only — does not write. Tells the client whether (name, mobile)
 // resolves to an existing team (offer Edit, subject to the cutoff) or a
 // fresh registration (and what name it would be assigned, including any
-// auto-suffix), per docs/SPEC-manager-app.md §2-3.
+// auto-suffix), per docs/SPEC-manager-app.md §2-3, §10.
 export async function POST(req: Request) {
   try {
     const { name, mobile } = await req.json();
     if (!name?.trim() || !mobile?.trim()) {
       return NextResponse.json({ error: "Name and mobile number are required." }, { status: 400 });
+    }
+    if (isAdminPlaceholder(mobile)) {
+      return NextResponse.json(
+        { error: "\"ADMIN\" is reserved for admin-entered teams — enter your real mobile number." },
+        { status: 400 }
+      );
     }
 
     const managers = await readManagers();

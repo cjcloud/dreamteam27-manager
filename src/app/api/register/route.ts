@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { nextIndex, nextManagerId, readManagers, writeManagerAt } from "@/lib/managersDb";
-import { resolveIdentity } from "@/lib/identity";
+import { resolveIdentity, isAdminPlaceholder } from "@/lib/identity";
 import { validateSquadForSave, totalValue } from "@/lib/squadRules";
 import { toTeamDetailEntry } from "@/lib/types";
 import type { PoolPlayer } from "@/lib/types";
@@ -23,6 +23,12 @@ export async function POST(req: Request) {
 
     if (!name?.trim() || !mobile?.trim()) {
       return NextResponse.json({ error: "Name and mobile number are required." }, { status: 400 });
+    }
+    if (isAdminPlaceholder(mobile)) {
+      return NextResponse.json(
+        { error: "\"ADMIN\" is reserved for admin-entered teams — enter your real mobile number." },
+        { status: 400 }
+      );
     }
 
     const squadCheck = validateSquadForSave(teamDetails ?? [], formation);

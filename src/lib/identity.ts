@@ -5,6 +5,23 @@ export interface IndexedManager {
   record: ManagerRecord;
 }
 
+// Placeholder mobile value written by dreamteam27-capture for admin-entered
+// teams (which have no real mobile number). It marks "this record was not
+// self-registered" but is NOT a real identifier — capture doesn't
+// deduplicate/suffix names, so several admin-entered managers can all carry
+// mobile: "ADMIN" at once. Treating "ADMIN" as a normal mobile would let an
+// exact (name, mobile) match resolve to an arbitrary one of them, or let a
+// self-service user "edit" someone else's admin-entered team just by typing
+// ADMIN. So: ADMIN records always count toward name-collision/suffixing,
+// but are never eligible to be matched as an "edit" target, and self-service
+// users are blocked from entering it as their own mobile (see /api/lookup
+// and /api/register).
+export const ADMIN_MOBILE_PLACEHOLDER = "ADMIN";
+
+export function isAdminPlaceholder(mobile: string | undefined): boolean {
+  return (mobile ?? "").trim().toUpperCase() === ADMIN_MOBILE_PLACEHOLDER;
+}
+
 function escapeRegex(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
@@ -43,12 +60,15 @@ export type ResolveResult =
   | { mode: "edit"; index: number; record: ManagerRecord }
   | { mode: "create"; assignedName: string };
 
-// Core identity rule (docs/SPEC-manager-app.md §2-3).
-// - Same base name + same mobile, anywhere in the name family (including
-//   already-suffixed variants) => editing the existing team.
+// Core identity rule (docs/SPEC-manager-app.md §2-3, §10).
+// - Same base name + same real mobile, anywhere in the name family
+//   (including already-suffixed variants) => editing the existing team.
+// - ADMIN-placeholder records (capture-entered, mobile: "ADMIN") are never
+//   an edit target — they still occupy the name and count toward
+//   suffixing, but can't be "matched" since ADMIN isn't unique per person.
 // - Base name never used before => fresh registration, no suffix.
-// - Base name used before (by a different mobile) => fresh registration,
-//   auto-suffixed to the next free `/N`.
+// - Base name used before (by a different/no real mobile, or by an ADMIN
+//   record) => fresh registration, auto-suffixed to the next free `/N`.
 export function resolveIdentity(
   managers: IndexedManager[],
   name: string,
@@ -58,7 +78,9 @@ export function resolveIdentity(
   const trimmedMobile = mobile.trim();
   const family = findNameFamily(managers, baseName);
 
-  const exact = family.find((m) => (m.record.mobile ?? "").trim() === trimmedMobile);
+  const exact = family.find(
+    (m) => !isAdminPlaceholder(m.record.mobile) && (m.record.mobile ?? "").trim() === trimmedMobile
+  );
   if (exact) {
     return { mode: "edit", index: exact.index, record: exact.record };
   }
