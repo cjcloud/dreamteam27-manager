@@ -49,8 +49,8 @@ stored manager name — it is not recalculated on every read.
 1. Manager enters **mobile number** first, then **name** (mobile is asked
    for first in the UI since it's also the key used by the "List my teams"
    lookup below). The mobile field only accepts digits, starting `07`,
-   exactly 12 digits long (e.g. `077001234567`) — non-digit characters and
-   any digits past the 12th are stripped immediately, and a warning
+   exactly 11 digits long (e.g. `07700123456`) — non-digit characters and
+   any digits past the 11th are stripped immediately, and a warning
    explains why. This is a client-side UX guard only; it is not (yet)
    re-validated server-side.
 2. **List my teams** is enabled only once a *valid-shape* mobile number is

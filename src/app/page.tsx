@@ -22,10 +22,10 @@ interface TeamSummary {
   playerCount: number;
 }
 
-const MOBILE_LENGTH = 12;
+const MOBILE_LENGTH = 11;
 
-// Mobile numbers must be digits only, starting "07", exactly 12 digits
-// long (e.g. 077001234567). Strips anything typed that isn't a digit (so
+// Mobile numbers must be digits only, starting "07", exactly 11 digits
+// long (e.g. 07700123456). Strips anything typed that isn't a digit (so
 // letters/symbols can never end up in the field), truncates anything past
 // the 12th digit, and reports a warning describing why, so the manager
 // sees why their input changed or is being rejected rather than it just
@@ -39,7 +39,7 @@ function sanitizeMobileInput(raw: string): { digits: string; warning: string | n
   if (digitsOnly.length > MOBILE_LENGTH) {
     return {
       digits,
-      warning: `Mobile number must be exactly ${MOBILE_LENGTH} digits (07XXXXXXXXXX) — extra digits were removed.`,
+      warning: `Mobile number must be exactly ${MOBILE_LENGTH} digits (07XXXXXXXXX) — extra digits were removed.`,
     };
   }
   if (digits.length > 0 && !"07".startsWith(digits) && !digits.startsWith("07")) {
@@ -432,7 +432,7 @@ export default function Page() {
               value={mobile}
               onChange={handleMobileChange}
               inputMode="numeric"
-              placeholder="e.g. 077001234567"
+              placeholder="e.g. 07700123456"
             />
             {mobileWarning && <p className="mt-1 text-xs text-[var(--dt-danger)]">{mobileWarning}</p>}
             {!mobileWarning && mobile.length > 0 && mobile.length < MOBILE_LENGTH && (
