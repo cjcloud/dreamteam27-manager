@@ -30,8 +30,33 @@ interface TeamSummary {
 // mark (š → s + ˇ), so stripping the combining-marks Unicode block leaves
 // just the base letters. Covers umlauts, acutes, carons, cedillas, etc. —
 // the common case for European player names in the pool.
+// A further group of letters are NOT accented forms at all — they're their
+// own distinct base characters in Unicode, so NFD decomposition (below)
+// passes them through unchanged. These come up regularly in footballer
+// names: Scandinavian Ø/Æ (e.g. "Ødegaard"), Icelandic Ð/Þ, Polish Ł,
+// Croatian/Serbian/Bosnian Đ, German ß, and French/Dutch Œ/Ĳ ligatures.
+// Folded explicitly, before NFD runs, to their closest plain-ASCII
+// equivalent so typing a plain spelling (e.g. "Odegaard") still matches.
+// (Names stored in Cyrillic or other non-Latin scripts aren't covered by
+// this — the player pool stores Latin-transliterated spellings already,
+// which is the standard convention for football data.)
+const NON_DECOMPOSING_FOLDS: Record<string, string> = {
+  "Ø": "O", "ø": "o",
+  "Æ": "AE", "æ": "ae",
+  "Œ": "OE", "œ": "oe",
+  "Đ": "D", "đ": "d",
+  "Ð": "D", "ð": "d",
+  "Þ": "Th", "þ": "th",
+  "Ł": "L", "ł": "l",
+  "ß": "ss", "ẞ": "SS",
+  "Ĳ": "IJ", "ĳ": "ij",
+  "ı": "i", "İ": "I",
+  "Ħ": "H", "ħ": "h",
+};
+
 function foldForSearch(s: string): string {
   return s
+    .replace(/[\u00d8\u00f8\u00c6\u00e6\u0152\u0153\u0110\u0111\u00d0\u00f0\u00de\u00fe\u0141\u0142\u00df\u1e9e\u0132\u0133\u0131\u0130\u0126\u0127]/g, (ch) => NON_DECOMPOSING_FOLDS[ch] ?? ch)
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase();
