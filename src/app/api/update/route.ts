@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { readManagers, writeManagerAt } from "@/lib/managersDb";
 import { isEditingOpen, EDIT_CUTOFF_ISO } from "@/lib/constants";
 import { validateSquadForSave, totalValue } from "@/lib/squadRules";
-import { toTeamDetailEntry } from "@/lib/types";
+import { toTeamDetailEntry, sortTeamDetailsByPosition } from "@/lib/types";
 import type { PoolPlayer } from "@/lib/types";
 import { isAdminPlaceholder } from "@/lib/identity";
 
@@ -59,7 +59,7 @@ export async function POST(req: Request) {
 
     await writeManagerAt(index, {
       ...existing.record,
-      teamDetails: (teamDetails ?? []).map(toTeamDetailEntry),
+      teamDetails: sortTeamDetailsByPosition((teamDetails ?? []).map(toTeamDetailEntry)),
       teamValue: totalValue(teamDetails ?? []),
       formation,
       lastUpdated: new Date().toISOString(),
