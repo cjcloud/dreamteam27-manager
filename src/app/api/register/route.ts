@@ -3,7 +3,7 @@ import { nextIndex, nextManagerId, readManagers, writeManagerAt } from "@/lib/ma
 import { resolveIdentity, isAdminPlaceholder } from "@/lib/identity";
 import { validateSquadForSave, totalValue } from "@/lib/squadRules";
 import { isEditingOpen, EDIT_CUTOFF_ISO } from "@/lib/constants";
-import { toTeamDetailEntry } from "@/lib/types";
+import { toTeamDetailEntry, sortTeamDetailsByPosition } from "@/lib/types";
 import type { PoolPlayer } from "@/lib/types";
 
 // Creates a brand-new team. Re-resolves identity server-side at write time
@@ -71,7 +71,7 @@ export async function POST(req: Request) {
       name: identity.assignedName,
       managerId,
       mobile: mobile.trim(),
-      teamDetails: (teamDetails ?? []).map(toTeamDetailEntry),
+      teamDetails: sortTeamDetailsByPosition((teamDetails ?? []).map(toTeamDetailEntry)),
       teamValue: totalValue(teamDetails ?? []),
       totalPoints: 0,
       formation,

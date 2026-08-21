@@ -34,6 +34,30 @@ export function fromTeamDetailEntry(e: TeamDetailEntry): PoolPlayer {
   return { playerId: e.playerId, ...e.playerDetails };
 }
 
+// Canonical squad display order — matches dreamteam27-capture's
+// components/managers/selected-players.tsx (kept as a literal here rather
+// than a cross-repo import, same reasoning as the cutoff constants in
+// dreamteam27-capture's lib/constants.ts).
+export const POSITION_ORDER: Record<string, number> = { GK: 1, DEF: 2, MID: 3, STR: 4 };
+
+// Reorders team entries into GK/DEF/MID/STR order before they're written.
+// This ONLY reorders the array — every entry (and every field on it) passes
+// through completely untouched; nothing is added, removed, or mutated.
+// Ties keep their existing relative order (stable sort); an unrecognised
+// position sorts last rather than being dropped.
+//
+// Server-side, not client-side, per SPEC-manager-app.md's own principle
+// that the server is the real guard — this app previously had no ordering
+// logic at all, so teams could be written in whatever order the picker UI
+// happened to submit them in.
+export function sortTeamDetailsByPosition(entries: TeamDetailEntry[]): TeamDetailEntry[] {
+  const rank = (e: TeamDetailEntry): number => POSITION_ORDER[e.playerDetails?.playerPosition as string] ?? 99;
+  return entries
+    .map((entry, index) => ({ entry, index }))
+    .sort((a, b) => rank(a.entry) - rank(b.entry) || a.index - b.index)
+    .map(({ entry }) => entry);
+}
+
 // A manager/team record as stored at /0 — verified 2026-08-18 against
 // live records. The real identity field is `manager` (present on every
 // record, including old-shape seed data); some newer records also
